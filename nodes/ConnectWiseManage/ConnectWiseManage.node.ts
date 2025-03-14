@@ -87,6 +87,12 @@ export class ConnectWiseManage implements INodeType {
 						action: 'Get many service tickets',
 					},
 					{
+						name: 'Get Notes',
+						value: 'getNotes',
+						description: 'Get notes for a service ticket',
+						action: 'Get notes for a service ticket',
+					},
+					{
 						name: 'Search',
 						value: 'search',
 						description: 'Search service tickets',
@@ -137,7 +143,7 @@ export class ConnectWiseManage implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['ticket'],
-						operation: ['get', 'update', 'delete'],
+						operation: ['get', 'update', 'delete', 'getNotes'],
 					},
 				},
 				description: 'The ID of the service ticket',
@@ -439,6 +445,23 @@ export class ConnectWiseManage implements INodeType {
 								conditions: searchQuery,
 								...filters,
 							},
+						};
+
+						responseData = await this.helpers.requestWithAuthentication.call(
+							this,
+							'connectWiseManageApi',
+							options,
+						);
+					} else if (operation === 'getNotes') {
+						const ticketId = this.getNodeParameter('ticketId', i) as string;
+
+						const options: IRequestOptions = {
+							headers: {
+								'Content-Type': 'application/json',
+							},
+							method: Methods.GET,
+							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}/notes`,
+							json: true,
 						};
 
 						responseData = await this.helpers.requestWithAuthentication.call(

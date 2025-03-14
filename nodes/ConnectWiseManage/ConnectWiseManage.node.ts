@@ -498,7 +498,6 @@ export class ConnectWiseManage implements INodeType {
 					}
 				}
 
-				// For operations that return a single item, don't wrap in array
 				if (operation === 'get') {
 					returnData.push({
 						json: responseData,
@@ -519,7 +518,7 @@ export class ConnectWiseManage implements INodeType {
 				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
-							error: error,
+							error: error.message,
 						},
 					});
 					continue;
@@ -530,10 +529,6 @@ export class ConnectWiseManage implements INodeType {
 
 		return [returnData];
 	}
-}
-
-interface IDataObject {
-	[key: string]: any;
 }
 
 enum Methods {
@@ -550,4 +545,8 @@ interface IRequestOptions {
 	qs?: any;
 	uri?: string;
 	json?: boolean;
+}
+
+interface IDataObject {
+	[key: string]: any;
 }

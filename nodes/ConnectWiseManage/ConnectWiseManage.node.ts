@@ -2395,6 +2395,45 @@ export class ConnectWiseManage implements INodeType {
 				description: 'The text content of the note to add',
 			},
 			{
+				displayName: 'Detail Description',
+				name: 'detailDescription',
+				type: 'boolean',
+				default: true,
+				displayOptions: {
+					show: {
+						resource: ['ticket'],
+						operation: ['addNote'],
+					},
+				},
+				description: 'Whether this note is a detailed description',
+			},
+			{
+				displayName: 'Internal Note',
+				name: 'internalAnalysis',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['ticket'],
+						operation: ['addNote'],
+					},
+				},
+				description: 'Whether this note is internal and only visible to staff',
+			},
+			{
+				displayName: 'Resolution Note',
+				name: 'resolution',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['ticket'],
+						operation: ['addNote'],
+					},
+				},
+				description: 'Whether this note is a resolution',
+			},
+			{
 				displayName: 'Summary',
 				name: 'summary',
 				type: 'string',
@@ -4535,9 +4574,9 @@ export class ConnectWiseManage implements INodeType {
 							body: {
 								ticketId,
 								text: noteText,
-								detailDescriptionFlag: true,
-								internalAnalysisFlag: false,
-								resolutionFlag: false,
+								detailDescriptionFlag: this.getNodeParameter('detailDescription', i) as boolean,
+								internalAnalysisFlag: this.getNodeParameter('internalAnalysis', i) as boolean,
+								resolutionFlag: this.getNodeParameter('resolution', i) as boolean,
 							},
 							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}/notes`,
 							json: true,

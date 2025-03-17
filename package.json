@@ -1,6 +1,6 @@
 {
 	"name": "@adamhancock/n8n-nodes-msp-ai",
-	"version": "0.1.4",
+	"version": "0.1.6",
 	"description": "Custom n8n nodes for MSPs",
 	"keywords": [
 		"n8n-community-node-package"
@@ -15,8 +15,7 @@
 		"url": "https://github.com/adamhancock/n8n-nodes-msp-ai.git"
 	},
 	"engines": {
-		"node": ">=22",
-		"pnpm": ">=9.1"
+		"node": ">=20"
 	},
 	"packageManager": "pnpm@10.4.0",
 	"main": "index.js",

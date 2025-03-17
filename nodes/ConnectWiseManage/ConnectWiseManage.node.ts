@@ -3,6 +3,7 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	NodeConnectionType,
 } from 'n8n-workflow';
 
 export class ConnectWiseManage implements INodeType {
@@ -11,14 +12,15 @@ export class ConnectWiseManage implements INodeType {
 		name: 'connectWiseManage',
 		icon: 'file:connectwise.svg',
 		group: ['transform'],
+		usableAsTool: true,
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Consume ConnectWise Manage API',
 		defaults: {
 			name: 'ConnectWise Manage',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionType.Main],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'connectWiseManageApi',
@@ -215,13 +217,6 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
-						displayName: 'Time End',
-						name: 'timeEnd',
-						type: 'string',
-						default: '',
-						description: 'End time (YYYY-MM-DD HH:mm:ss)',
-					},
-					{
 						displayName: 'Billable',
 						name: 'billable',
 						type: 'boolean',
@@ -229,18 +224,11 @@ export class ConnectWiseManage implements INodeType {
 						description: 'Whether the time entry is billable',
 					},
 					{
-						displayName: 'Notes',
-						name: 'notes',
+						displayName: 'Charge Code',
+						name: 'chargeCode',
 						type: 'string',
 						default: '',
-						description: 'Notes about the time entry',
-					},
-					{
-						displayName: 'Member ID',
-						name: 'member',
-						type: 'string',
-						default: '',
-						description: 'The member associated with this time entry',
+						description: 'The charge code for the time entry',
 					},
 					{
 						displayName: 'Company ID',
@@ -250,11 +238,25 @@ export class ConnectWiseManage implements INodeType {
 						description: 'The company associated with this time entry',
 					},
 					{
-						displayName: 'Charge Code',
-						name: 'chargeCode',
+						displayName: 'Member ID',
+						name: 'member',
 						type: 'string',
 						default: '',
-						description: 'The charge code for the time entry',
+						description: 'The member associated with this time entry',
+					},
+					{
+						displayName: 'Notes',
+						name: 'notes',
+						type: 'string',
+						default: '',
+						description: 'Notes about the time entry',
+					},
+					{
+						displayName: 'Time End',
+						name: 'timeEnd',
+						type: 'string',
+						default: '',
+						description: 'End time (YYYY-MM-DD HH:mm:ss)',
 					},
 					{
 						displayName: 'Work Type',
@@ -399,6 +401,34 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'Date',
+						name: 'date',
+						type: 'string',
+						default: '',
+						description: 'Purchase order date (YYYY-MM-DD)',
+					},
+					{
+						displayName: 'Notes',
+						name: 'notes',
+						type: 'string',
+						default: '',
+						description: 'Additional notes for the purchase order',
+					},
+					{
+						displayName: 'Shipping Cost',
+						name: 'shippingCost',
+						type: 'number',
+						default: 0,
+						description: 'Shipping cost amount',
+					},
+					{
+						displayName: 'Shipping Date',
+						name: 'shippingDate',
+						type: 'string',
+						default: '',
+						description: 'Expected shipping date (YYYY-MM-DD)',
+					},
+					{
 						displayName: 'Status',
 						name: 'status',
 						type: 'options',
@@ -423,20 +453,6 @@ export class ConnectWiseManage implements INodeType {
 						default: 'Draft',
 					},
 					{
-						displayName: 'Date',
-						name: 'date',
-						type: 'string',
-						default: '',
-						description: 'Purchase order date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'Shipping Date',
-						name: 'shippingDate',
-						type: 'string',
-						default: '',
-						description: 'Expected shipping date (YYYY-MM-DD)',
-					},
-					{
 						displayName: 'Tax Rate',
 						name: 'taxRate',
 						type: 'number',
@@ -446,20 +462,6 @@ export class ConnectWiseManage implements INodeType {
 							maxValue: 100,
 						},
 						description: 'Tax rate percentage (0-100)',
-					},
-					{
-						displayName: 'Shipping Cost',
-						name: 'shippingCost',
-						type: 'number',
-						default: 0,
-						description: 'Shipping cost amount',
-					},
-					{
-						displayName: 'Notes',
-						name: 'notes',
-						type: 'string',
-						default: '',
-						description: 'Additional notes for the purchase order',
 					},
 				],
 			},
@@ -603,6 +605,13 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'End Date',
+						name: 'endDate',
+						type: 'string',
+						default: '',
+						description: 'Schedule end date (YYYY-MM-DD)',
+					},
+					{
 						displayName: 'Member ID',
 						name: 'member',
 						type: 'string',
@@ -615,33 +624,6 @@ export class ConnectWiseManage implements INodeType {
 						type: 'string',
 						default: '',
 						description: 'Schedule start date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'End Date',
-						name: 'endDate',
-						type: 'string',
-						default: '',
-						description: 'Schedule end date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'Type',
-						name: 'type',
-						type: 'options',
-						options: [
-							{
-								name: 'General',
-								value: 'General',
-							},
-							{
-								name: 'Project',
-								value: 'Project',
-							},
-							{
-								name: 'Sales',
-								value: 'Sales',
-							},
-						],
-						default: 'General',
 					},
 					{
 						displayName: 'Status',
@@ -662,6 +644,26 @@ export class ConnectWiseManage implements INodeType {
 							},
 						],
 						default: 'Scheduled',
+					},
+					{
+						displayName: 'Type',
+						name: 'type',
+						type: 'options',
+						options: [
+							{
+								name: 'General',
+								value: 'General',
+							},
+							{
+								name: 'Project',
+								value: 'Project',
+							},
+							{
+								name: 'Sales',
+								value: 'Sales',
+							},
+						],
+						default: 'General',
 					},
 				],
 			},
@@ -773,18 +775,11 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
-						displayName: 'Description',
-						name: 'description',
-						type: 'string',
-						default: '',
-						description: 'The description of the product catalog item',
-					},
-					{
-						displayName: 'Price',
-						name: 'price',
-						type: 'number',
-						default: 0,
-						description: 'The price of the product catalog item',
+						displayName: 'Active',
+						name: 'active',
+						type: 'boolean',
+						default: true,
+						description: 'Whether the product catalog item is active',
 					},
 					{
 						displayName: 'Category',
@@ -794,11 +789,25 @@ export class ConnectWiseManage implements INodeType {
 						description: 'The category of the product catalog item',
 					},
 					{
+						displayName: 'Description',
+						name: 'description',
+						type: 'string',
+						default: '',
+						description: 'The description of the product catalog item',
+					},
+					{
 						displayName: 'Manufacturer',
 						name: 'manufacturer',
 						type: 'string',
 						default: '',
 						description: 'The manufacturer of the product catalog item',
+					},
+					{
+						displayName: 'Price',
+						name: 'price',
+						type: 'number',
+						default: 0,
+						description: 'The price of the product catalog item',
 					},
 					{
 						displayName: 'SKU',
@@ -813,13 +822,6 @@ export class ConnectWiseManage implements INodeType {
 						type: 'string',
 						default: '',
 						description: 'The vendor of the product catalog item',
-					},
-					{
-						displayName: 'Active',
-						name: 'active',
-						type: 'boolean',
-						default: true,
-						description: 'Whether the product catalog item is active',
 					},
 				],
 			},
@@ -938,6 +940,58 @@ export class ConnectWiseManage implements INodeType {
 						description: 'The company associated with this opportunity',
 					},
 					{
+						displayName: 'Expected Close Date',
+						name: 'expectedCloseDate',
+						type: 'string',
+						default: '',
+						description: 'Expected close date (YYYY-MM-DD)',
+					},
+					{
+						displayName: 'Location',
+						name: 'location',
+						type: 'string',
+						default: '',
+						description: 'The location of the opportunity',
+					},
+					{
+						displayName: 'Notes',
+						name: 'notes',
+						type: 'string',
+						default: '',
+						description: 'Notes about the opportunity',
+					},
+					{
+						displayName: 'Priority',
+						name: 'priority',
+						type: 'options',
+						options: [
+							{
+								name: 'Low',
+								value: 'Low',
+							},
+							{
+								name: 'Medium',
+								value: 'Medium',
+							},
+							{
+								name: 'High',
+								value: 'High',
+							},
+						],
+						default: 'Medium',
+					},
+					{
+						displayName: 'Probability',
+						name: 'probability',
+						type: 'number',
+						default: 50,
+						typeOptions: {
+							minValue: 0,
+							maxValue: 100,
+						},
+						description: 'Probability of winning (0-100)',
+					},
+					{
 						displayName: 'Status',
 						name: 'status',
 						type: 'options',
@@ -960,58 +1014,6 @@ export class ConnectWiseManage implements INodeType {
 							},
 						],
 						default: 'Open',
-					},
-					{
-						displayName: 'Expected Close Date',
-						name: 'expectedCloseDate',
-						type: 'string',
-						default: '',
-						description: 'Expected close date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'Probability',
-						name: 'probability',
-						type: 'number',
-						default: 50,
-						typeOptions: {
-							minValue: 0,
-							maxValue: 100,
-						},
-						description: 'Probability of winning (0-100)',
-					},
-					{
-						displayName: 'Notes',
-						name: 'notes',
-						type: 'string',
-						default: '',
-						description: 'Notes about the opportunity',
-					},
-					{
-						displayName: 'Location',
-						name: 'location',
-						type: 'string',
-						default: '',
-						description: 'The location of the opportunity',
-					},
-					{
-						displayName: 'Priority',
-						name: 'priority',
-						type: 'options',
-						options: [
-							{
-								name: 'Low',
-								value: 'Low',
-							},
-							{
-								name: 'Medium',
-								value: 'Medium',
-							},
-							{
-								name: 'High',
-								value: 'High',
-							},
-						],
-						default: 'Medium',
 					},
 				],
 			},
@@ -1123,6 +1125,14 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'Email',
+						name: 'email',
+						type: 'string',
+						default: '',
+						placeholder: 'name@email.com',
+						description: 'The email address of the member',
+					},
+					{
 						displayName: 'First Name',
 						name: 'firstName',
 						type: 'string',
@@ -1137,21 +1147,6 @@ export class ConnectWiseManage implements INodeType {
 						description: 'The last name of the member',
 					},
 					{
-						displayName: 'Email',
-						name: 'email',
-						type: 'string',
-						default: '',
-						placeholder: 'name@email.com',
-						description: 'The email address of the member',
-					},
-					{
-						displayName: 'Title',
-						name: 'title',
-						type: 'string',
-						default: '',
-						description: 'The job title of the member',
-					},
-					{
 						displayName: 'Phone Number',
 						name: 'phoneNumber',
 						type: 'string',
@@ -1164,6 +1159,13 @@ export class ConnectWiseManage implements INodeType {
 						type: 'string',
 						default: '',
 						description: 'The time zone of the member',
+					},
+					{
+						displayName: 'Title',
+						name: 'title',
+						type: 'string',
+						default: '',
+						description: 'The job title of the member',
 					},
 					{
 						displayName: 'Work Role',
@@ -1282,11 +1284,39 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
+						displayName: 'Billable',
+						name: 'billable',
+						type: 'boolean',
+						default: true,
+						description: 'Whether the project is billable',
+					},
+					{
 						displayName: 'Company ID',
 						name: 'company',
 						type: 'string',
 						default: '',
 						description: 'The company associated with this project',
+					},
+					{
+						displayName: 'Description',
+						name: 'description',
+						type: 'string',
+						default: '',
+						description: 'The description of the project',
+					},
+					{
+						displayName: 'End Date',
+						name: 'endDate',
+						type: 'string',
+						default: '',
+						description: 'Project end date (YYYY-MM-DD)',
+					},
+					{
+						displayName: 'Start Date',
+						name: 'startDate',
+						type: 'string',
+						default: '',
+						description: 'Project start date (YYYY-MM-DD)',
 					},
 					{
 						displayName: 'Status',
@@ -1307,34 +1337,6 @@ export class ConnectWiseManage implements INodeType {
 							},
 						],
 						default: 'Open',
-					},
-					{
-						displayName: 'Description',
-						name: 'description',
-						type: 'string',
-						default: '',
-						description: 'The description of the project',
-					},
-					{
-						displayName: 'Start Date',
-						name: 'startDate',
-						type: 'string',
-						default: '',
-						description: 'Project start date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'End Date',
-						name: 'endDate',
-						type: 'string',
-						default: '',
-						description: 'Project end date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'Billable',
-						name: 'billable',
-						type: 'boolean',
-						default: true,
-						description: 'Whether the project is billable',
 					},
 				],
 			},
@@ -1446,24 +1448,25 @@ export class ConnectWiseManage implements INodeType {
 				default: {},
 				options: [
 					{
-						displayName: 'Type',
-						name: 'type',
-						type: 'options',
-						options: [
-							{
-								name: 'Standard',
-								value: 'Standard',
-							},
-							{
-								name: 'Progress',
-								value: 'Progress',
-							},
-							{
-								name: 'Credit',
-								value: 'Credit',
-							},
-						],
-						default: 'Standard',
+						displayName: 'Date',
+						name: 'date',
+						type: 'string',
+						default: '',
+						description: 'Invoice date (YYYY-MM-DD)',
+					},
+					{
+						displayName: 'Due Date',
+						name: 'dueDate',
+						type: 'string',
+						default: '',
+						description: 'Invoice due date (YYYY-MM-DD)',
+					},
+					{
+						displayName: 'Reference',
+						name: 'reference',
+						type: 'string',
+						default: '',
+						description: 'Invoice reference number',
 					},
 					{
 						displayName: 'Status',
@@ -1486,25 +1489,24 @@ export class ConnectWiseManage implements INodeType {
 						default: 'Open',
 					},
 					{
-						displayName: 'Date',
-						name: 'date',
-						type: 'string',
-						default: '',
-						description: 'Invoice date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'Due Date',
-						name: 'dueDate',
-						type: 'string',
-						default: '',
-						description: 'Invoice due date (YYYY-MM-DD)',
-					},
-					{
-						displayName: 'Reference',
-						name: 'reference',
-						type: 'string',
-						default: '',
-						description: 'Invoice reference number',
+						displayName: 'Type',
+						name: 'type',
+						type: 'options',
+						options: [
+							{
+								name: 'Standard',
+								value: 'Standard',
+							},
+							{
+								name: 'Progress',
+								value: 'Progress',
+							},
+							{
+								name: 'Credit',
+								value: 'Credit',
+							},
+						],
+						default: 'Standard',
 					},
 				],
 			},
@@ -2480,7 +2482,7 @@ export class ConnectWiseManage implements INodeType {
 						type: 'string',
 						default: '',
 						description:
-							'The board to create the ticket under. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+							'The board to create the ticket under. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Company Name or ID',
@@ -2488,7 +2490,7 @@ export class ConnectWiseManage implements INodeType {
 						type: 'string',
 						default: '',
 						description:
-							'The company to create the ticket for. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+							'The company to create the ticket for. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 					{
 						displayName: 'Initial Description',
@@ -2498,20 +2500,20 @@ export class ConnectWiseManage implements INodeType {
 						description: 'The initial description of the ticket',
 					},
 					{
-						displayName: 'Status Name or ID',
-						name: 'status',
-						type: 'string',
-						default: '',
-						description:
-							'The status to set the ticket to. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
-					},
-					{
 						displayName: 'Priority Name or ID',
 						name: 'priority',
 						type: 'string',
 						default: '',
 						description:
-							'The priority to set the ticket to. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+							'The priority to set the ticket to. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+					},
+					{
+						displayName: 'Status Name or ID',
+						name: 'status',
+						type: 'string',
+						default: '',
+						description:
+							'The status to set the ticket to. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 					},
 				],
 			},

@@ -7,6 +7,7 @@ import {
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
 	NodeOperationError,
+	NodeConnectionType,
 } from 'n8n-workflow';
 
 export class ConnectWiseManageTrigger implements INodeType {
@@ -21,7 +22,7 @@ export class ConnectWiseManageTrigger implements INodeType {
 			name: 'ConnectWise Manage Trigger',
 		},
 		inputs: [],
-		outputs: ['main'],
+		outputs: [NodeConnectionType.Main],
 		credentials: [
 			{
 				name: 'connectWiseManageApi',
@@ -107,7 +108,7 @@ export class ConnectWiseManageTrigger implements INodeType {
 				default: '',
 				required: true,
 				description:
-					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>',
+					'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
 				displayName: 'Active',

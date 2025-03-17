@@ -4,7 +4,7 @@
 
 This repository contains a powerful n8n integration for ConnectWise Manage, specifically designed for MSPs (Managed Service Providers) to automate their workflows and operations. It includes both the ConnectWise Manage nodes for n8n and infrastructure code to deploy n8n with Azure Container Apps for a secure, scalable automation platform.
 
-[![Deploy n8n with ConnectWise Manage Integration to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fadamhancock%2Fn8n-nodes-msp-automation%2Fmain%2Finfra%2Fazuredeploy.json)
+[![Deploy n8n with ConnectWise Manage Integration to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fadamhancock%2Fn8n-nodes-msp-ai%2Fmain%2Finfra%2Fazuredeploy.json)
 [![Sponsor me](https://img.shields.io/static/v1?label=Sponsor&message=❤&logo=GitHub&color=ff69b4)](https://github.com/sponsors/adamhancock)
 
 ## 🚀 MSP Automation with ConnectWise Manage and n8n

@@ -2,7 +2,7 @@
 
 This directory contains Bicep templates to deploy the n8n MSP AI solution in Azure using Container Apps with a PostgreSQL database. This infrastructure is designed to provide a secure, scalable environment for running n8n workflows that integrate with MSP tools and AI services.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fadamhancock%2Fn8n-nodes-msp-automation%2Fmain%2Finfra%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fadamhancock%2Fn8n-nodes-msp-ai%2Fmain%2Finfra%2Fazuredeploy.json)
 
 > **Note:** To use the "Deploy to Azure" button, ensure your Bicep files are compiled to ARM templates and pushed to your repository.
 

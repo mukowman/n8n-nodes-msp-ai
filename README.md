@@ -1,46 +1,177 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+![n8n ConnectWise Manage Integration for MSP Automation](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
 
-# n8n-nodes-starter
+# n8n ConnectWise Manage Integration for MSP Automation
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](n8n.io). It includes the node linter and other dependencies.
+This repository contains a powerful n8n integration for ConnectWise Manage, specifically designed for MSPs (Managed Service Providers) to automate their workflows and operations. It includes both the ConnectWise Manage nodes for n8n and infrastructure code to deploy n8n with Azure Container Apps for a secure, scalable automation platform.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+[![Deploy n8n with ConnectWise Manage Integration to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fadamhancock%2Fn8n-nodes-msp-automation%2Fmain%2Finfra%2Fazuredeploy.json)
+[![Sponsor me](https://img.shields.io/static/v1?label=Sponsor&message=❤&logo=GitHub&color=ff69b4)](https://github.com/sponsors/adamhancock)
 
-## Prerequisites
+## 🚀 MSP Automation with ConnectWise Manage and n8n
 
-You need the following installed on your development machine:
+Streamline your MSP operations by automating ConnectWise Manage workflows with n8n. This integration enables you to build powerful automation workflows that connect ConnectWise Manage with other tools in your MSP tech stack.
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
+### 🔄 ConnectWise Manage Integration Features
+
+This package provides comprehensive integration with ConnectWise Manage API, allowing you to:
+
+- **Automate ticket management** - Create, update, and close service tickets automatically
+- **Streamline client onboarding** - Automate company and contact creation
+- **Track time efficiently** - Automate time entries for billing accuracy
+- **Enhance project management** - Automate project tasks and updates
+- **Improve sales processes** - Automate opportunity tracking and follow-ups
+- **Real-time notifications** - Set up webhooks to trigger workflows based on ConnectWise Manage events
+- **Custom workflow automation** - Build complex automation workflows specific to your MSP needs
+
+### 📊 Supported ConnectWise Manage Resources
+
+The integration supports comprehensive operations on these ConnectWise Manage resources:
+
+- **Service Tickets** - Manage tickets, add notes, track status changes
+- **Companies** - Create and update client companies
+- **Contacts** - Manage client contacts
+- **Time Entries** - Track billable and non-billable time
+- **Projects** - Manage project details and tasks
+- **Opportunities** - Track sales opportunities
+- **Agreements** - Manage service agreements
+- **Activities** - Track activities and follow-ups
+- **Members** - Manage team members
+- **Configurations** - Track client configurations
+- **Invoices** - Manage billing and invoices
+- **Expenses** - Track expenses
+- **Purchase Orders** - Manage procurement
+- **Product Catalog** - Access product information
+- **Schedules** - Manage scheduling
+
+## 🏗️ Azure Deployment Infrastructure
+
+The `/infra` directory contains Bicep templates to deploy n8n in Azure using Container Apps with a PostgreSQL database, providing a secure and scalable environment for your MSP automation workflows.
+
+### 🔒 Azure Infrastructure Features
+
+- **Secure environment** - Private endpoints for database connectivity
+- **Scalable architecture** - Azure Container Apps for flexible scaling
+- **Cost-effective** - Pay-as-you-go pricing model
+- **Managed services** - Reduced operational overhead
+- **High availability** - Reliable platform for critical MSP workflows
+- **Integrated logging** - Comprehensive monitoring and troubleshooting
+- **Easy deployment** - One-click deployment with the "Deploy to Azure" button
+
+## 🛠️ Prerequisites
+
+To develop or use this integration, you need:
+
+* [git](https://git-scm.com/downloads) - For source control
+* **Node.js and pnpm** - Minimum version Node 18. Install using [nvm](https://github.com/nvm-sh/nvm) for Linux, Mac, and WSL. For Windows, follow Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
+* **n8n** - Install globally with:
   ```
   pnpm install n8n -g
   ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+* **ConnectWise Manage API credentials** - You'll need access to your ConnectWise Manage instance
 
-## Using this starter
+## 📦 Installation Options
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+### 🧩 As a Community Node in n8n
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
+The easiest way to use this integration is to install it directly from the n8n UI as a community node:
+
+1. Open your n8n instance
+2. Go to **Settings** > **Community Nodes**
+3. Click **Install**
+4. Enter `@adamhancock/n8n-nodes-msp-ai` in the "npm package name" field
+5. Click **Install**
+6. Reload n8n when prompted
+
+After installation, the ConnectWise Manage nodes will be available in your n8n workflows.
+
+### 📥 As an npm Package
+
+To use this node in your existing n8n installation via npm:
+
+```bash
+npm install @adamhancock/n8n-nodes-msp-ai
+```
+
+Then restart your n8n instance to load the new nodes.
+
+### 🧪 For Development
+
+1. Clone the repository:
    ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
+   git clone https://github.com/adamhancock/n8n-nodes-msp-ai.git
    ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+2. Install dependencies:
+   ```
+   cd n8n-nodes-msp-ai
+   pnpm install
+   ```
+3. Build the code:
+   ```
+   pnpm build
+   ```
+4. Link to your n8n installation:
+   ```
+   npm link
+   ```
+   In your n8n installation directory:
+   ```
+   npm link @adamhancock/n8n-nodes-msp-ai
+   ```
 
-## More information
+## ☁️ Azure Deployment Methods
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+### 🔘 One-Click Deployment
 
-## License
+Click the "Deploy to Azure" button at the top of this README to deploy n8n with the ConnectWise Manage integration directly to your Azure subscription.
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+### ⌨️ Manual Deployment
+
+1. Navigate to the `/infra` directory
+2. Update parameters in `main.parameters.json`
+3. Run the deployment script:
+   - On Linux/macOS: `chmod +x deploy.sh && ./deploy.sh`
+   - On Windows: `deploy.cmd`
+
+For more detailed deployment instructions, see the [infrastructure README](/infra/README.md).
+
+## 🔌 Using the ConnectWise Manage Integration
+
+After installation, the ConnectWise Manage nodes will be available in your n8n instance:
+
+### 🔄 ConnectWise Manage Node
+
+Use this node in your workflows to interact with ConnectWise Manage resources. It supports operations like:
+
+- Creating and updating tickets
+- Managing companies and contacts
+- Tracking time entries
+- Handling projects and opportunities
+- And much more
+
+### 📡 ConnectWise Manage Trigger
+
+Use this node to start workflows based on events in ConnectWise Manage, such as:
+
+- New ticket created
+- Ticket status changed
+- New company added
+- New contact created
+- And many other events
+
+## ⚙️ Configuration
+
+To use the ConnectWise Manage integration, configure the ConnectWise Manage API credentials in n8n:
+
+1. Go to Settings > Credentials
+2. Create a new credential of type "ConnectWise Manage API"
+3. Enter your ConnectWise Manage site URL, company ID, public key, and private key
+
+## 📚 Resources
+
+- [n8n Documentation](https://docs.n8n.io/)
+- [ConnectWise Manage API Documentation](https://developer.connectwise.com/)
+- [Azure Container Apps Documentation](https://docs.microsoft.com/en-us/azure/container-apps/)
+
+## 📄 License
+
+[MIT](LICENSE.md)

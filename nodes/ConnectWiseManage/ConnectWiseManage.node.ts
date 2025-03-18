@@ -250,18 +250,62 @@ export class ConnectWiseManage implements INodeType {
 							const limit = this.getNodeParameter('limit', i, 100) as number;
 							const orderBy = this.getNodeParameter('orderBy', i) as string;
 
+							// Initialize variables for pagination
+							let page = this.getNodeParameter('page', i, 1) as number;
+							const pageSize = this.getNodeParameter('pageSize', i, limit) as number;
+							const maxPages = returnAll ? undefined : 1;
+							let allData: any[] = [];
+
+							// Set initial query parameters
 							const qs: IDataObject = {
-								pageSize: limit,
+								pageSize,
+								page,
 								orderBy,
 							};
 
-							responseData = await makeApiRequest(
+							// Make initial request
+							let response = await makeApiRequest(
 								Methods.GET,
 								`${baseUrl}/${currentResource.endpoint}`,
 								{},
 								qs,
 							);
 
+							// If response is an array, add it to our results
+							if (Array.isArray(response)) {
+								allData = [...response];
+							}
+
+							// Continue fetching pages until we have all data or reach maxPages
+							while (response && Array.isArray(response) && response.length === pageSize) {
+								// Break if maxPages is reached
+								if (maxPages && page >= maxPages) {
+									break;
+								}
+
+								// Increment page number for next request
+								page++;
+
+								// Update query parameters for next page
+								qs.page = page;
+
+								// Make request for next page
+								response = await makeApiRequest(
+									Methods.GET,
+									`${baseUrl}/${currentResource.endpoint}`,
+									{},
+									qs,
+								);
+
+								// Add results to accumulated data
+								if (Array.isArray(response)) {
+									allData.push(...response);
+								}
+							}
+
+							responseData = allData;
+
+							// If not returning all, limit the results
 							if (!returnAll && Array.isArray(responseData)) {
 								responseData = responseData.slice(0, limit);
 							}

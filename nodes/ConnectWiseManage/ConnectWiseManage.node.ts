@@ -4,6 +4,7 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	NodeConnectionType,
+	NodeOperationError,
 } from 'n8n-workflow';
 
 import { properties } from './properties';
@@ -36,2070 +37,292 @@ export class ConnectWiseManage implements INodeType {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 		const length = items.length;
-		let responseData;
 
-		// First get the resource parameter
+		// Get common parameters
 		const resource = this.getNodeParameter('resource', 0) as string;
-		// Get credentials
-		const credentials = await this.getCredentials('connectWiseManageApi');
 		const operation = this.getNodeParameter('operation', 0) as string;
-		console.log('resource:', resource);
-		console.log('operation:', operation);
+		const credentials = await this.getCredentials('connectWiseManageApi');
+
+		// Define API version and base URL
+		const apiVersion = 'v4_6_release/apis/3.0';
+		const baseUrl = `${credentials.siteUrl}/${apiVersion}`;
+
+		// Helper function to make API requests (defined inside execute to access the correct 'this' context)
+		const makeApiRequest = async (
+			method: Methods,
+			uri: string,
+			body: IDataObject = {},
+			qs: IDataObject = {},
+		) => {
+			const options: IRequestOptions = {
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				method,
+				uri,
+				json: true,
+			};
+
+			if (Object.keys(body).length > 0) {
+				options.body = body;
+			}
+
+			if (Object.keys(qs).length > 0) {
+				options.qs = qs;
+			}
+
+			return this.helpers.requestWithAuthentication.call(this, 'connectWiseManageApi', options);
+		};
+
+		// Resource configuration mapping
+		const resourceConfig: ResourceConfig = {
+			time: {
+				endpoint: 'time/entries',
+				primaryKey: 'timeEntryId',
+				requiredCreateFields: ['timeStart'],
+			},
+			purchaseOrder: {
+				endpoint: 'procurement/purchaseorders',
+				primaryKey: 'purchaseOrderId',
+				requiredCreateFields: ['vendorId'],
+			},
+			schedule: {
+				endpoint: 'schedule/entries',
+				primaryKey: 'scheduleId',
+				requiredCreateFields: ['objectType', 'objectId'],
+			},
+			productCatalog: {
+				endpoint: 'procurement/catalog',
+				primaryKey: 'productId',
+				requiredCreateFields: ['name'],
+			},
+			opportunity: {
+				endpoint: 'sales/opportunities',
+				primaryKey: 'opportunityId',
+				requiredCreateFields: ['name'],
+			},
+			member: {
+				endpoint: 'system/members',
+				primaryKey: 'memberId',
+				requiredCreateFields: ['identifier'],
+			},
+			project: {
+				endpoint: 'project/projects',
+				primaryKey: 'projectId',
+				requiredCreateFields: ['name'],
+			},
+			invoice: {
+				endpoint: 'finance/invoices',
+				primaryKey: 'invoiceId',
+				requiredCreateFields: ['company'],
+			},
+			expense: {
+				endpoint: 'expense/expenses',
+				primaryKey: 'expenseId',
+				requiredCreateFields: ['description'],
+			},
+			contact: {
+				endpoint: 'company/contacts',
+				primaryKey: 'contactId',
+				requiredCreateFields: ['firstName', 'lastName'],
+			},
+			configuration: {
+				endpoint: 'company/configurations',
+				primaryKey: 'configurationId',
+				requiredCreateFields: ['name'],
+			},
+			agreement: {
+				endpoint: 'finance/agreements',
+				primaryKey: 'agreementId',
+				requiredCreateFields: ['name'],
+			},
+			activity: {
+				endpoint: 'company/activities',
+				primaryKey: 'activityId',
+				requiredCreateFields: ['name'],
+			},
+			ticket: {
+				endpoint: 'service/tickets',
+				primaryKey: 'ticketId',
+				requiredCreateFields: ['summary'],
+				specialOperations: {
+					getNotes: {
+						method: Methods.GET,
+						endpoint: (id) => `service/tickets/${id}/notes`,
+					},
+					addNote: {
+						method: Methods.POST,
+						endpoint: (id) => `service/tickets/${id}/notes`,
+						getBody: (params) => ({
+							ticketId: params.ticketId,
+							text: params.noteText,
+							detailDescriptionFlag: params.detailDescription,
+							internalAnalysisFlag: params.internalAnalysis,
+							resolutionFlag: params.resolution,
+						}),
+					},
+				},
+			},
+			company: {
+				endpoint: 'company/companies',
+				primaryKey: 'companyId',
+				requiredCreateFields: ['name'],
+			},
+		};
 
 		for (let i = 0; i < length; i++) {
 			try {
-				// Handle different resources
-				if (resource === 'time') {
-					// Get the operation parameter only after confirming the resource is 'time'
-					if (operation === 'create') {
-						const timeStart = this.getNodeParameter('timeStart', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
+				let responseData;
+				const currentResource = resourceConfig[resource];
 
-						const body: IDataObject = {
-							timeStart,
-							...additionalFields,
-						};
+				if (!currentResource) {
+					throw new NodeOperationError(this.getNode(), `Resource '${resource}' is not supported`);
+				}
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/time/entries`,
-							json: true,
-						};
+				// Handle special operations first
+				if (currentResource.specialOperations && currentResource.specialOperations[operation]) {
+					const specialOp = currentResource.specialOperations[operation];
+					const id = this.getNodeParameter(currentResource.primaryKey, i) as string;
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const timeEntryId = this.getNodeParameter('timeEntryId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/time/entries/${timeEntryId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						console.log('getAll', i);
-
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/time/entries`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+					let body = {};
+					if (specialOp.getBody) {
+						const params: IDataObject = {};
+						// Get all parameters needed for the special operation
+						if (operation === 'addNote') {
+							params.ticketId = id;
+							params.noteText = this.getNodeParameter('noteText', i) as string;
+							params.detailDescription = this.getNodeParameter('detailDescription', i) as boolean;
+							params.internalAnalysis = this.getNodeParameter('internalAnalysis', i) as boolean;
+							params.resolution = this.getNodeParameter('resolution', i) as boolean;
 						}
-					} else if (operation === 'update') {
-						const timeEntryId = this.getNodeParameter('timeEntryId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/time/entries/${timeEntryId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const timeEntryId = this.getNodeParameter('timeEntryId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/time/entries/${timeEntryId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/time/entries`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
+						body = specialOp.getBody(params);
 					}
-				} else if (resource === 'purchaseOrder') {
-					if (operation === 'create') {
-						const vendorId = this.getNodeParameter('vendorId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const body: IDataObject = {
-							vendorId,
-							...additionalFields,
-						};
+					const options: IRequestOptions = {
+						headers: { 'Content-Type': 'application/json' },
+						method: specialOp.method,
+						uri: `${baseUrl}/${specialOp.endpoint(id)}`,
+						json: true,
+					};
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/purchaseorders`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const purchaseOrderId = this.getNodeParameter('purchaseOrderId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/purchaseorders/${purchaseOrderId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/purchaseorders`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const purchaseOrderId = this.getNodeParameter('purchaseOrderId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/purchaseorders/${purchaseOrderId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const purchaseOrderId = this.getNodeParameter('purchaseOrderId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/purchaseorders/${purchaseOrderId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/purchaseorders`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
+					if (Object.keys(body).length > 0) {
+						options.body = body;
 					}
-				} else if (resource === 'schedule') {
-					if (operation === 'create') {
-						const objectType = this.getNodeParameter('objectType', i) as string;
-						const objectId = this.getNodeParameter('objectId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const body: IDataObject = {
-							objectType,
-							objectId,
-							...additionalFields,
-						};
+					responseData = await this.helpers.requestWithAuthentication.call(
+						this,
+						'connectWiseManageApi',
+						options,
+					);
+				} else {
+					// Handle standard CRUD operations
+					switch (operation) {
+						case 'create': {
+							// Get required fields for this resource
+							const body: IDataObject = {};
+							for (const field of currentResource.requiredCreateFields) {
+								body[field] = this.getNodeParameter(field, i);
+							}
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/schedule/entries`,
-							json: true,
-						};
+							// Add any additional fields
+							const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
+							Object.assign(body, additionalFields);
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const scheduleId = this.getNodeParameter('scheduleId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/schedule/entries/${scheduleId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/schedule/entries`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+							responseData = await makeApiRequest(
+								Methods.POST,
+								`${baseUrl}/${currentResource.endpoint}`,
+								body,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+							break;
 						}
-					} else if (operation === 'update') {
-						const scheduleId = this.getNodeParameter('scheduleId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/schedule/entries/${scheduleId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const scheduleId = this.getNodeParameter('scheduleId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/schedule/entries/${scheduleId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/schedule/entries`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'productCatalog') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/catalog`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const productId = this.getNodeParameter('productId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/catalog/${productId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/catalog`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+						case 'get': {
+							const id = this.getNodeParameter(currentResource.primaryKey, i) as string;
+							responseData = await makeApiRequest(
+								Methods.GET,
+								`${baseUrl}/${currentResource.endpoint}/${id}`,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+							break;
 						}
-					} else if (operation === 'update') {
-						const productId = this.getNodeParameter('productId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/catalog/${productId}`,
-							json: true,
-						};
+						case 'getAll': {
+							const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+							const limit = this.getNodeParameter('limit', i, 100) as number;
+							const orderBy = this.getNodeParameter('orderBy', i) as string;
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const productId = this.getNodeParameter('productId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/catalog/${productId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/procurement/catalog`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'opportunity') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/sales/opportunities`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const opportunityId = this.getNodeParameter('opportunityId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/sales/opportunities/${opportunityId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/sales/opportunities`,
-							json: true,
-							qs: {
+							const qs: IDataObject = {
 								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
+								orderBy,
+							};
 
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+							responseData = await makeApiRequest(
+								Methods.GET,
+								`${baseUrl}/${currentResource.endpoint}`,
+								{},
+								qs,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+
+							if (!returnAll && Array.isArray(responseData)) {
+								responseData = responseData.slice(0, limit);
+							}
+							break;
 						}
-					} else if (operation === 'update') {
-						const opportunityId = this.getNodeParameter('opportunityId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/sales/opportunities/${opportunityId}`,
-							json: true,
-						};
+						case 'update': {
+							const id = this.getNodeParameter(currentResource.primaryKey, i) as string;
+							const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const opportunityId = this.getNodeParameter('opportunityId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/sales/opportunities/${opportunityId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/sales/opportunities`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'member') {
-					if (operation === 'create') {
-						const identifier = this.getNodeParameter('identifier', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							identifier,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/system/members`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const memberId = this.getNodeParameter('memberId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/system/members/${memberId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/system/members`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+							responseData = await makeApiRequest(
+								Methods.PATCH,
+								`${baseUrl}/${currentResource.endpoint}/${id}`,
+								additionalFields,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+							break;
 						}
-					} else if (operation === 'update') {
-						const memberId = this.getNodeParameter('memberId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/system/members/${memberId}`,
-							json: true,
-						};
+						case 'delete': {
+							const id = this.getNodeParameter(currentResource.primaryKey, i) as string;
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const memberId = this.getNodeParameter('memberId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/system/members/${memberId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/system/members`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						console.log('options', options);
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'project') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/project/projects`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const projectId = this.getNodeParameter('projectId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/project/projects/${projectId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/project/projects`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+							responseData = await makeApiRequest(
+								Methods.DELETE,
+								`${baseUrl}/${currentResource.endpoint}/${id}`,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+							break;
 						}
-					} else if (operation === 'update') {
-						const projectId = this.getNodeParameter('projectId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/project/projects/${projectId}`,
-							json: true,
-						};
+						case 'search': {
+							const searchQuery = this.getNodeParameter('searchQuery', i) as string;
+							const orderBy = this.getNodeParameter('orderBy', i) as string;
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const projectId = this.getNodeParameter('projectId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/project/projects/${projectId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/project/projects`,
-							json: true,
-							qs: {
+							const qs: IDataObject = {
 								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
+								orderBy,
+							};
 
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'invoice') {
-					if (operation === 'create') {
-						const company = this.getNodeParameter('company', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
+							// Add any additional filters for ticket searches
+							if (resource === 'ticket') {
+								const filters = this.getNodeParameter('filters', i, {}) as IDataObject;
+								Object.assign(qs, filters);
+							}
 
-						const body: IDataObject = {
-							company,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/invoices`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const invoiceId = this.getNodeParameter('invoiceId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/invoices/${invoiceId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/invoices`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+							responseData = await makeApiRequest(
+								Methods.GET,
+								`${baseUrl}/${currentResource.endpoint}`,
+								{},
+								qs,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
+							break;
 						}
-					} else if (operation === 'update') {
-						const invoiceId = this.getNodeParameter('invoiceId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
 
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/invoices/${invoiceId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const invoiceId = this.getNodeParameter('invoiceId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/invoices/${invoiceId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/invoices`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'expense') {
-					if (operation === 'create') {
-						const description = this.getNodeParameter('description', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							description,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/expense/expenses`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const expenseId = this.getNodeParameter('expenseId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/expense/expenses/${expenseId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/expense/expenses`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
+						default:
+							throw new NodeOperationError(
+								this.getNode(),
+								`Operation '${operation}' is not supported for resource '${resource}'`,
 							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const expenseId = this.getNodeParameter('expenseId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/expense/expenses/${expenseId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const expenseId = this.getNodeParameter('expenseId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/expense/expenses/${expenseId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/expense/expenses`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'contact') {
-					if (operation === 'create') {
-						const firstName = this.getNodeParameter('firstName', i) as string;
-						const lastName = this.getNodeParameter('lastName', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							firstName,
-							lastName,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/contacts`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const contactId = this.getNodeParameter('contactId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/contacts/${contactId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/contacts`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const contactId = this.getNodeParameter('contactId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/contacts/${contactId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const contactId = this.getNodeParameter('contactId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/contacts/${contactId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/contacts`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'configuration') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/configurations`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const configurationId = this.getNodeParameter('configurationId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/configurations/${configurationId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						console.log('returnAll', i);
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/configurations`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const configurationId = this.getNodeParameter('configurationId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/configurations/${configurationId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const configurationId = this.getNodeParameter('configurationId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/configurations/${configurationId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/configurations`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'agreement') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/agreements`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const agreementId = this.getNodeParameter('agreementId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/agreements/${agreementId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/agreements`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const agreementId = this.getNodeParameter('agreementId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/agreements/${agreementId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const agreementId = this.getNodeParameter('agreementId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/agreements/${agreementId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/finance/agreements`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'activity') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/activities`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const activityId = this.getNodeParameter('activityId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/activities/${activityId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/activities`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const activityId = this.getNodeParameter('activityId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/activities/${activityId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const activityId = this.getNodeParameter('activityId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/activities/${activityId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/activities`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'ticket') {
-					if (operation === 'create') {
-						const summary = this.getNodeParameter('summary', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							summary,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const ticketId = this.getNodeParameter('ticketId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const ticketId = this.getNodeParameter('ticketId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const ticketId = this.getNodeParameter('ticketId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-						const filters = this.getNodeParameter('filters', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-								...filters,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getNotes') {
-						const ticketId = this.getNodeParameter('ticketId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}/notes`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'addNote') {
-						const ticketId = this.getNodeParameter('ticketId', i) as string;
-						const noteText = this.getNodeParameter('noteText', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body: {
-								ticketId,
-								text: noteText,
-								detailDescriptionFlag: this.getNodeParameter('detailDescription', i) as boolean,
-								internalAnalysisFlag: this.getNodeParameter('internalAnalysis', i) as boolean,
-								resolutionFlag: this.getNodeParameter('resolution', i) as boolean,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/service/tickets/${ticketId}/notes`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					}
-				} else if (resource === 'company') {
-					if (operation === 'create') {
-						const name = this.getNodeParameter('name', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const body: IDataObject = {
-							name,
-							...additionalFields,
-						};
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.POST,
-							body,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/companies`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'get') {
-						const companyId = this.getNodeParameter('companyId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/companies/${companyId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'getAll') {
-						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
-						const limit = this.getNodeParameter('limit', i, 100) as number;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/companies`,
-							json: true,
-							qs: {
-								pageSize: limit,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						if (returnAll) {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-						} else {
-							responseData = await this.helpers.requestWithAuthentication.call(
-								this,
-								'connectWiseManageApi',
-								options,
-							);
-							responseData = responseData.slice(0, limit);
-						}
-					} else if (operation === 'update') {
-						const companyId = this.getNodeParameter('companyId', i) as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.PATCH,
-							body: {
-								...additionalFields,
-							},
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/companies/${companyId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'delete') {
-						const companyId = this.getNodeParameter('companyId', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.DELETE,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/companies/${companyId}`,
-							json: true,
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
-					} else if (operation === 'search') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-
-						const options: IRequestOptions = {
-							headers: {
-								'Content-Type': 'application/json',
-							},
-							method: Methods.GET,
-							uri: `${credentials.siteUrl}/v4_6_release/apis/3.0/company/companies`,
-							json: true,
-							qs: {
-								conditions: searchQuery,
-								orderBy: this.getNodeParameter('orderBy', i) as string,
-							},
-						};
-
-						responseData = await this.helpers.requestWithAuthentication.call(
-							this,
-							'connectWiseManageApi',
-							options,
-						);
 					}
 				}
 
+				// Format the response data
 				if (operation === 'get') {
 					returnData.push({
 						json: responseData,
@@ -2151,4 +374,19 @@ interface IRequestOptions {
 
 interface IDataObject {
 	[key: string]: any;
+}
+
+interface ResourceConfig {
+	[key: string]: {
+		endpoint: string;
+		primaryKey: string;
+		requiredCreateFields: string[];
+		specialOperations?: {
+			[key: string]: {
+				method: Methods;
+				endpoint: (id: string) => string;
+				getBody?: (params: IDataObject) => IDataObject;
+			};
+		};
+	};
 }

@@ -148,7 +148,7 @@ export class ConnectWiseManage implements INodeType {
 				specialOperations: {
 					getNotes: {
 						method: Methods.GET,
-						endpoint: (id) => `service/tickets/${id}/notes`,
+						endpoint: (id) => `service/tickets/${id}/allNotes`,
 					},
 					addNote: {
 						method: Methods.POST,

@@ -12,6 +12,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Add latest tag
-        run: npm dist-tag add @n8n/n8n-nodes-msp@$(node -p "require('./package.json').version") latest
+        run: npm dist-tag add ${{ github.repository }}@$(node -p "require('./package.json').version") latest
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

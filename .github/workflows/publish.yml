@@ -28,11 +28,6 @@ jobs:
           pnpm build
           pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json
 
-      - name: Publish to NPM
-        run: pnpm publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
-
       - name: Read version from package.json
         id: read_version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT

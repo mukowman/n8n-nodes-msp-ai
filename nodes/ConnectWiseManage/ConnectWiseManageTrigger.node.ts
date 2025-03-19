@@ -117,6 +117,13 @@ export class ConnectWiseManageTrigger implements INodeType {
 				default: true,
 				description: 'Whether this webhook trigger is active',
 			},
+			{
+				displayName: 'Self-Suppressed',
+				name: 'isSelfSuppressed',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to suppress notifications for changes made by this integration',
+			},
 		],
 	};
 
@@ -325,6 +332,7 @@ export class ConnectWiseManageTrigger implements INodeType {
 					level: string;
 					memberId: number;
 					inactiveFlag: boolean;
+					isSelfSuppressedFlag: boolean;
 					value?: string;
 					objectId: number;
 				}
@@ -336,6 +344,7 @@ export class ConnectWiseManageTrigger implements INodeType {
 					level,
 					memberId: 0,
 					inactiveFlag: !active,
+					isSelfSuppressedFlag: this.getNodeParameter('isSelfSuppressed') as boolean,
 					objectId:
 						level === 'Owner'
 							? 1 // Use fixed ID 1 for owner level

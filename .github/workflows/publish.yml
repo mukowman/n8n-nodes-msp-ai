@@ -1,8 +1,9 @@
-name: Publish Package to NPM
+name: Publish Package to NPM latest tag
 
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,24 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: '.nvmrc'
-          registry-url: 'https://registry.npmjs.org/'
-
-      - name: Install PNPM
-        uses: pnpm/action-setup@v2
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build and lint
-        run: |
-          pnpm build
-          pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json
-
-      - name: Publish to NPM
-        run: pnpm publish --no-git-checks
+      - name: Add latest tag
+        run: npm dist-tag add @n8n/n8n-nodes-msp@$(node -p "require('./package.json').version") latest
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

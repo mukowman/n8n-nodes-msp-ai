@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.33.93.31351",
-      "templateHash": "8872843047228219157"
+      "version": "0.34.1.11899",
+      "templateHash": "4934241402376306618"
     }
   },
   "parameters": {
@@ -25,19 +25,21 @@
     },
     "postgresAdminUsername": {
       "type": "string",
+      "defaultValue": "n8nadmin",
       "metadata": {
         "description": "The administrator username for the PostgreSQL server"
       }
     },
     "postgresAdminPassword": {
       "type": "securestring",
+      "defaultValue": "",
       "metadata": {
         "description": "The administrator password for the PostgreSQL server"
       }
     },
     "n8nEncryptionKey": {
       "type": "securestring",
-      "defaultValue": "[newGuid()]",
+      "defaultValue": "",
       "metadata": {
         "description": "The encryption key for n8n"
       }
@@ -61,14 +63,15 @@
     }
   },
   "variables": {
+    "generatedPostgresPassword": "[if(equals(parameters('postgresAdminPassword'), ''), format('{0}Pw1', uniqueString(resourceGroup().id)), parameters('postgresAdminPassword'))]",
+    "generatedEncryptionKey": "[if(equals(parameters('n8nEncryptionKey'), ''), uniqueString(resourceGroup().id), parameters('n8nEncryptionKey'))]",
     "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
     "vnetName": "[format('{0}-vnet-{1}', parameters('baseName'), variables('uniqueSuffix'))]",
     "logAnalyticsName": "[format('{0}-logs-{1}', parameters('baseName'), variables('uniqueSuffix'))]",
     "containerAppEnvName": "[format('{0}-env-{1}', parameters('baseName'), variables('uniqueSuffix'))]",
     "postgresServerName": "[format('{0}-pg-{1}', parameters('baseName'), variables('uniqueSuffix'))]",
     "n8nContainerAppName": "[format('{0}-app-{1}', parameters('baseName'), variables('uniqueSuffix'))]",
-    "postgresDnsZoneName": "privatelink.postgres.database.azure.com",
-    "postgresPrivateEndpointName": "[format('{0}-pg-pe-{1}', parameters('baseName'), variables('uniqueSuffix'))]"
+    "storageAccountName": "[replace(format('{0}st{1}', parameters('baseName'), variables('uniqueSuffix')), '-', '')]"
   },
   "resources": [
     {
@@ -97,8 +100,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "7369201502854470093"
+              "version": "0.34.1.11899",
+              "templateHash": "1150528681124189922"
             }
           },
           "parameters": {
@@ -129,9 +132,16 @@
                 "description": "The address prefix for the container apps subnet"
               }
             },
-            "privateEndpointsSubnetAddressPrefix": {
+            "postgresSubnetAddressPrefix": {
               "type": "string",
               "defaultValue": "10.0.2.0/24",
+              "metadata": {
+                "description": "The address prefix for the PostgreSQL subnet"
+              }
+            },
+            "privateEndpointsSubnetAddressPrefix": {
+              "type": "string",
+              "defaultValue": "10.0.3.0/24",
               "metadata": {
                 "description": "The address prefix for the private endpoints subnet"
               }
@@ -162,11 +172,19 @@
                     "name": "container-apps-subnet",
                     "properties": {
                       "addressPrefix": "[parameters('containerAppsSubnetAddressPrefix')]",
+                      "privateEndpointNetworkPolicies": "Enabled",
+                      "privateLinkServiceNetworkPolicies": "Enabled"
+                    }
+                  },
+                  {
+                    "name": "postgres-subnet",
+                    "properties": {
+                      "addressPrefix": "[parameters('postgresSubnetAddressPrefix')]",
                       "delegations": [
                         {
-                          "name": "Microsoft.App.environments",
+                          "name": "Microsoft.DBforPostgreSQL.flexibleServers",
                           "properties": {
-                            "serviceName": "Microsoft.App/environments"
+                            "serviceName": "Microsoft.DBforPostgreSQL/flexibleServers"
                           }
                         }
                       ]
@@ -195,6 +213,10 @@
             "containerAppsSubnetId": {
               "type": "string",
               "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), 'container-apps-subnet')]"
+            },
+            "postgresSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), 'postgres-subnet')]"
             },
             "privateEndpointsSubnetId": {
               "type": "string",
@@ -230,8 +252,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "4348822012549674056"
+              "version": "0.34.1.11899",
+              "templateHash": "17261866612833571403"
             }
           },
           "parameters": {
@@ -317,6 +339,490 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
+      "name": "storage-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.1.11899",
+              "templateHash": "5832087657118767893"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the Storage Account"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "The location for all resources"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to the resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "supportsHttpsTrafficOnly": true
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', parameters('name'), 'default', 'n8n-data')]",
+              "properties": {
+                "accessTier": "TransactionOptimized",
+                "shareQuota": 100
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices', parameters('name'), 'default')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', parameters('name'))]"
+            },
+            "shareName": {
+              "type": "string",
+              "value": "n8n-data"
+            },
+            "shareId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', parameters('name'), 'default', 'n8n-data')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "private-dns-zone-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "private.postgres.database.azure.com"
+          },
+          "vnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2022-09-01').outputs.vnetId.value]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.1.11899",
+              "templateHash": "17161288494681201078"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the private DNS zone"
+              }
+            },
+            "vnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "The ID of the virtual network to link with the private DNS zone"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to the resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[parameters('name')]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', parameters('name'), format('link-{0}', uniqueString(parameters('vnetId'))))]",
+              "location": "global",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[parameters('vnetId')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateDnsZones', parameters('name'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/privateDnsZones', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "postgresql-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "serverName": {
+            "value": "[variables('postgresServerName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "administratorLogin": {
+            "value": "[parameters('postgresAdminUsername')]"
+          },
+          "administratorLoginPassword": {
+            "value": "[variables('generatedPostgresPassword')]"
+          },
+          "version": {
+            "value": "16"
+          },
+          "serverEdition": {
+            "value": "Burstable"
+          },
+          "vmName": {
+            "value": "Standard_B1ms"
+          },
+          "storageSizeGB": {
+            "value": 32
+          },
+          "backupRetentionDays": {
+            "value": 7
+          },
+          "geoRedundantBackup": {
+            "value": "Disabled"
+          },
+          "haEnabled": {
+            "value": "Disabled"
+          },
+          "availabilityZone": {
+            "value": ""
+          },
+          "standbyAvailabilityZone": {
+            "value": ""
+          },
+          "storageAutogrow": {
+            "value": "Enabled"
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2022-09-01').outputs.postgresSubnetId.value]"
+          },
+          "privateDnsZoneId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'private-dns-zone-deployment'), '2022-09-01').outputs.id.value]"
+          },
+          "databaseName": {
+            "value": "n8n"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.1.11899",
+              "templateHash": "8380254898569047895"
+            }
+          },
+          "parameters": {
+            "serverName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the PostgreSQL server"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "The location for all resources"
+              }
+            },
+            "administratorLogin": {
+              "type": "string",
+              "metadata": {
+                "description": "The administrator username for the PostgreSQL server"
+              }
+            },
+            "administratorLoginPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "The administrator password for the PostgreSQL server"
+              }
+            },
+            "subnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "The subnet ID for the PostgreSQL server"
+              }
+            },
+            "privateDnsZoneId": {
+              "type": "string",
+              "metadata": {
+                "description": "The private DNS zone ID for PostgreSQL"
+              }
+            },
+            "version": {
+              "type": "string",
+              "defaultValue": "16",
+              "metadata": {
+                "description": "The PostgreSQL version"
+              }
+            },
+            "serverEdition": {
+              "type": "string",
+              "defaultValue": "Burstable",
+              "metadata": {
+                "description": "Server Edition"
+              }
+            },
+            "vmName": {
+              "type": "string",
+              "defaultValue": "Standard_B1ms",
+              "metadata": {
+                "description": "Virtual machine name"
+              }
+            },
+            "storageSizeGB": {
+              "type": "int",
+              "defaultValue": 32,
+              "metadata": {
+                "description": "The storage size in GB"
+              }
+            },
+            "backupRetentionDays": {
+              "type": "int",
+              "defaultValue": 7,
+              "minValue": 7,
+              "maxValue": 35,
+              "metadata": {
+                "description": "The backup retention days"
+              }
+            },
+            "geoRedundantBackup": {
+              "type": "string",
+              "defaultValue": "Disabled",
+              "metadata": {
+                "description": "Enable/disable geo-redundant backup"
+              }
+            },
+            "haEnabled": {
+              "type": "string",
+              "defaultValue": "Disabled",
+              "metadata": {
+                "description": "Enable/disable high availability"
+              }
+            },
+            "availabilityZone": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Availability zone"
+              }
+            },
+            "standbyAvailabilityZone": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Standby availability zone"
+              }
+            },
+            "storageAutogrow": {
+              "type": "string",
+              "defaultValue": "Enabled",
+              "metadata": {
+                "description": "Enable/disable storage autogrow"
+              }
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "n8n",
+              "metadata": {
+                "description": "The database name"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to the resources"
+              }
+            }
+          },
+          "variables": {
+            "serverHash": "[split(parameters('serverName'), '-')[last(range(0, length(split(parameters('serverName'), '-'))))]]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "apiVersion": "2022-12-01",
+              "name": "[parameters('serverName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('vmName')]",
+                "tier": "[parameters('serverEdition')]"
+              },
+              "properties": {
+                "version": "[parameters('version')]",
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "storage": {
+                  "storageSizeGB": "[parameters('storageSizeGB')]"
+                },
+                "backup": {
+                  "backupRetentionDays": "[parameters('backupRetentionDays')]",
+                  "geoRedundantBackup": "[parameters('geoRedundantBackup')]"
+                },
+                "highAvailability": {
+                  "mode": "[parameters('haEnabled')]",
+                  "standbyAvailabilityZone": "[parameters('standbyAvailabilityZone')]"
+                },
+                "availabilityZone": "[parameters('availabilityZone')]",
+                "network": {
+                  "delegatedSubnetResourceId": "[parameters('subnetId')]",
+                  "privateDnsZoneArmResourceId": "[parameters('privateDnsZoneId')]",
+                  "firewallRules": [
+                    {
+                      "name": "AllowAll",
+                      "startIpAddress": "0.0.0.0",
+                      "endIpAddress": "255.255.255.255"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+              "apiVersion": "2022-12-01",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
+              "properties": {
+                "charset": "UTF8",
+                "collation": "en_US.utf8"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "connectionString": {
+              "type": "string",
+              "value": "[format('postgresql://{0}:{1}@{2}.private.postgres.database.azure.com:5432/{3}', parameters('administratorLogin'), parameters('administratorLoginPassword'), variables('serverHash'), parameters('databaseName'))]"
+            },
+            "serverName": {
+              "type": "string",
+              "value": "[parameters('serverName')]"
+            },
+            "serverFqdn": {
+              "type": "string",
+              "value": "[format('{0}.private.postgres.database.azure.com', variables('serverHash'))]"
+            },
+            "databaseName": {
+              "type": "string",
+              "value": "[parameters('databaseName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'private-dns-zone-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
       "name": "container-app-environment-deployment",
       "properties": {
         "expressionEvaluationOptions": {
@@ -333,6 +839,9 @@
           "logAnalyticsWorkspaceId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment'), '2022-09-01').outputs.id.value]"
           },
+          "infrastructureSubnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2022-09-01').outputs.containerAppsSubnetId.value]"
+          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -343,8 +852,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "615487601216731167"
+              "version": "0.34.1.11899",
+              "templateHash": "4979873031622558586"
             }
           },
           "parameters": {
@@ -420,438 +929,8 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment')]"
-      ]
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
-      "name": "postgresql-deployment",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "serverName": {
-            "value": "[variables('postgresServerName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "administratorLogin": {
-            "value": "[parameters('postgresAdminUsername')]"
-          },
-          "administratorLoginPassword": {
-            "value": "[parameters('postgresAdminPassword')]"
-          },
-          "databaseName": {
-            "value": "n8n"
-          },
-          "tags": {
-            "value": "[parameters('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "6557313102945999861"
-            }
-          },
-          "parameters": {
-            "serverName": {
-              "type": "string",
-              "metadata": {
-                "description": "The name of the PostgreSQL server"
-              }
-            },
-            "location": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().location]",
-              "metadata": {
-                "description": "The location for all resources"
-              }
-            },
-            "administratorLogin": {
-              "type": "string",
-              "metadata": {
-                "description": "The administrator username for the PostgreSQL server"
-              }
-            },
-            "administratorLoginPassword": {
-              "type": "securestring",
-              "metadata": {
-                "description": "The administrator password for the PostgreSQL server"
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Tags to apply to the resources"
-              }
-            },
-            "postgresqlVersion": {
-              "type": "string",
-              "defaultValue": "14",
-              "allowedValues": [
-                "11",
-                "12",
-                "13",
-                "14",
-                "15"
-              ],
-              "metadata": {
-                "description": "The PostgreSQL version"
-              }
-            },
-            "skuName": {
-              "type": "string",
-              "defaultValue": "Standard_B1ms",
-              "metadata": {
-                "description": "The SKU name for the PostgreSQL server"
-              }
-            },
-            "storageSizeGB": {
-              "type": "int",
-              "defaultValue": 32,
-              "metadata": {
-                "description": "The storage size for the PostgreSQL server in MB"
-              }
-            },
-            "backupRetentionDays": {
-              "type": "int",
-              "defaultValue": 7,
-              "minValue": 7,
-              "maxValue": 35,
-              "metadata": {
-                "description": "The backup retention days for the PostgreSQL server"
-              }
-            },
-            "databaseName": {
-              "type": "string",
-              "defaultValue": "n8n",
-              "metadata": {
-                "description": "The database name"
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
-              "apiVersion": "2022-12-01",
-              "name": "[parameters('serverName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "sku": {
-                "name": "[parameters('skuName')]",
-                "tier": "[if(contains(parameters('skuName'), 'Burstable'), 'Burstable', if(contains(parameters('skuName'), 'Standard'), 'GeneralPurpose', 'MemoryOptimized'))]"
-              },
-              "properties": {
-                "version": "[parameters('postgresqlVersion')]",
-                "administratorLogin": "[parameters('administratorLogin')]",
-                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
-                "storage": {
-                  "storageSizeGB": "[parameters('storageSizeGB')]"
-                },
-                "backup": {
-                  "backupRetentionDays": "[parameters('backupRetentionDays')]",
-                  "geoRedundantBackup": "Disabled"
-                },
-                "highAvailability": {
-                  "mode": "Disabled"
-                },
-                "network": {
-                  "publicNetworkAccess": "Disabled"
-                }
-              }
-            },
-            {
-              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
-              "apiVersion": "2022-12-01",
-              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
-              "properties": {
-                "charset": "UTF8",
-                "collation": "en_US.utf8"
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "connectionString": {
-              "type": "string",
-              "metadata": {
-                "description": "The connection string for the PostgreSQL database"
-              },
-              "value": "[format('postgresql://{0}:{1}@{2}:5432/{3}', parameters('administratorLogin'), parameters('administratorLoginPassword'), reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName')), '2022-12-01').fullyQualifiedDomainName, parameters('databaseName'))]"
-            },
-            "serverName": {
-              "type": "string",
-              "value": "[parameters('serverName')]"
-            },
-            "serverFqdn": {
-              "type": "string",
-              "value": "[reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName')), '2022-12-01').fullyQualifiedDomainName]"
-            },
-            "databaseName": {
-              "type": "string",
-              "value": "[parameters('databaseName')]"
-            },
-            "id": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', parameters('serverName'))]"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
-      "name": "postgres-dns-zone-deployment",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "name": {
-            "value": "[variables('postgresDnsZoneName')]"
-          },
-          "vnetId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2022-09-01').outputs.vnetId.value]"
-          },
-          "tags": {
-            "value": "[parameters('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "14288211231272330665"
-            }
-          },
-          "parameters": {
-            "name": {
-              "type": "string",
-              "metadata": {
-                "description": "The name of the private DNS zone"
-              }
-            },
-            "vnetId": {
-              "type": "string",
-              "metadata": {
-                "description": "The ID of the virtual network to link with the private DNS zone"
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Tags to apply to the resources"
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Network/privateDnsZones",
-              "apiVersion": "2020-06-01",
-              "name": "[parameters('name')]",
-              "location": "global",
-              "tags": "[parameters('tags')]"
-            },
-            {
-              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
-              "apiVersion": "2020-06-01",
-              "name": "[format('{0}/{1}', parameters('name'), format('link-{0}', uniqueString(parameters('vnetId'))))]",
-              "location": "global",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "registrationEnabled": false,
-                "virtualNetwork": {
-                  "id": "[parameters('vnetId')]"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateDnsZones', parameters('name'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "id": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.Network/privateDnsZones', parameters('name'))]"
-            },
-            "name": {
-              "type": "string",
-              "value": "[parameters('name')]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]"
-      ]
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
-      "name": "postgres-private-endpoint-deployment",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "name": {
-            "value": "[variables('postgresPrivateEndpointName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "privateConnectionResourceId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2022-09-01').outputs.id.value]"
-          },
-          "groupId": {
-            "value": "postgresqlServer"
-          },
-          "subnetId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'networking-deployment'), '2022-09-01').outputs.privateEndpointsSubnetId.value]"
-          },
-          "privateDnsZoneId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgres-dns-zone-deployment'), '2022-09-01').outputs.id.value]"
-          },
-          "tags": {
-            "value": "[parameters('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "7146032965189484874"
-            }
-          },
-          "parameters": {
-            "name": {
-              "type": "string",
-              "metadata": {
-                "description": "The name of the private endpoint"
-              }
-            },
-            "location": {
-              "type": "string",
-              "defaultValue": "[resourceGroup().location]",
-              "metadata": {
-                "description": "The location for all resources"
-              }
-            },
-            "privateConnectionResourceId": {
-              "type": "string",
-              "metadata": {
-                "description": "The resource ID of the resource to connect to"
-              }
-            },
-            "groupId": {
-              "type": "string",
-              "metadata": {
-                "description": "The group ID of the resource to connect to"
-              }
-            },
-            "subnetId": {
-              "type": "string",
-              "metadata": {
-                "description": "The subnet ID to deploy the private endpoint in"
-              }
-            },
-            "privateDnsZoneId": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "The private DNS zone ID to link with the private endpoint"
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Tags to apply to the resources"
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Network/privateEndpoints",
-              "apiVersion": "2023-05-01",
-              "name": "[parameters('name')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "privateLinkServiceConnections": [
-                  {
-                    "name": "[parameters('name')]",
-                    "properties": {
-                      "privateLinkServiceId": "[parameters('privateConnectionResourceId')]",
-                      "groupIds": [
-                        "[parameters('groupId')]"
-                      ]
-                    }
-                  }
-                ],
-                "subnet": {
-                  "id": "[parameters('subnetId')]"
-                }
-              }
-            },
-            {
-              "condition": "[not(empty(parameters('privateDnsZoneId')))]",
-              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
-              "apiVersion": "2023-05-01",
-              "name": "[format('{0}/{1}', parameters('name'), 'default')]",
-              "properties": {
-                "privateDnsZoneConfigs": [
-                  {
-                    "name": "config1",
-                    "properties": {
-                      "privateDnsZoneId": "[parameters('privateDnsZoneId')]"
-                    }
-                  }
-                ]
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/privateEndpoints', parameters('name'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "id": {
-              "type": "string",
-              "value": "[resourceId('Microsoft.Network/privateEndpoints', parameters('name'))]"
-            },
-            "name": {
-              "type": "string",
-              "value": "[parameters('name')]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'networking-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'postgres-dns-zone-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]"
       ]
     },
     {
@@ -876,11 +955,29 @@
           "containerImage": {
             "value": "[parameters('n8nContainerImage')]"
           },
-          "postgresConnectionString": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2022-09-01').outputs.connectionString.value]"
+          "postgresServerFqdn": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2022-09-01').outputs.serverFqdn.value]"
+          },
+          "postgresDbName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'postgresql-deployment'), '2022-09-01').outputs.databaseName.value]"
+          },
+          "postgresAdminUsername": {
+            "value": "[parameters('postgresAdminUsername')]"
+          },
+          "postgresAdminPassword": {
+            "value": "[variables('generatedPostgresPassword')]"
           },
           "encryptionKey": {
-            "value": "[parameters('n8nEncryptionKey')]"
+            "value": "[variables('generatedEncryptionKey')]"
+          },
+          "ingressTrafficType": {
+            "value": "external"
+          },
+          "storageAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2022-09-01').outputs.name.value]"
+          },
+          "storageShareName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage-deployment'), '2022-09-01').outputs.shareName.value]"
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -892,8 +989,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.33.93.31351",
-              "templateHash": "1779183095533502976"
+              "version": "0.34.1.11899",
+              "templateHash": "13975752789741938152"
             }
           },
           "parameters": {
@@ -951,10 +1048,40 @@
                 "description": "The maximum number of replicas"
               }
             },
-            "postgresConnectionString": {
+            "postgresServerFqdn": {
+              "type": "string",
+              "metadata": {
+                "description": "The PostgreSQL server FQDN"
+              }
+            },
+            "postgresDbName": {
+              "type": "string",
+              "metadata": {
+                "description": "The PostgreSQL database name"
+              }
+            },
+            "postgresAdminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "The PostgreSQL admin username"
+              }
+            },
+            "postgresAdminPassword": {
               "type": "securestring",
               "metadata": {
-                "description": "The PostgreSQL connection string"
+                "description": "The PostgreSQL admin password"
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "The storage account name"
+              }
+            },
+            "storageShareName": {
+              "type": "string",
+              "metadata": {
+                "description": "The storage share name"
               }
             },
             "encryptionKey": {
@@ -1032,16 +1159,21 @@
               "properties": {
                 "managedEnvironmentId": "[parameters('containerAppEnvironmentId')]",
                 "configuration": {
-                  "activeRevisionsMode": "single",
-                  "ingress": "[if(parameters('ingressEnabled'), createObject('external', equals(parameters('ingressTrafficType'), 'external'), 'targetPort', parameters('targetPort'), 'transport', parameters('ingressTransport'), 'allowInsecure', parameters('ingressAllowInsecure'), 'traffic', createArray(createObject('weight', 100, 'latestRevision', true()))), null())]",
+                  "activeRevisionsMode": "Single",
+                  "ingress": "[if(parameters('ingressEnabled'), createObject('targetPort', parameters('targetPort'), 'allowInsecure', parameters('ingressAllowInsecure'), 'external', equals(parameters('ingressTrafficType'), 'external'), 'transport', parameters('ingressTransport'), 'traffic', createArray(createObject('latestRevision', true(), 'weight', 100)), 'corsPolicy', createObject('allowedOrigins', createArray('*'), 'allowedMethods', createArray('*'), 'allowedHeaders', createArray('*'))), null())]",
                   "secrets": [
-                    {
-                      "name": "postgres-connection-string",
-                      "value": "[parameters('postgresConnectionString')]"
-                    },
                     {
                       "name": "encryption-key",
                       "value": "[parameters('encryptionKey')]"
+                    }
+                  ],
+                  "registries": [],
+                  "volumes": [
+                    {
+                      "name": "n8n-data",
+                      "storageName": "[parameters('storageAccountName')]",
+                      "storageType": "AzureFile",
+                      "shareName": "[parameters('storageShareName')]"
                     }
                   ]
                 },
@@ -1054,6 +1186,12 @@
                         "cpu": "[json(parameters('cpuCore'))]",
                         "memory": "[format('{0}Gi', parameters('memorySize'))]"
                       },
+                      "volumeMounts": [
+                        {
+                          "volumeName": "n8n-data",
+                          "mountPath": "/home/node/.n8n"
+                        }
+                      ],
                       "env": [
                         {
                           "name": "DB_TYPE",
@@ -1061,11 +1199,11 @@
                         },
                         {
                           "name": "DB_POSTGRESDB_DATABASE",
-                          "value": "n8n"
+                          "value": "[parameters('postgresDbName')]"
                         },
                         {
                           "name": "DB_POSTGRESDB_HOST",
-                          "value": "placeholder-will-be-extracted-from-connection-string"
+                          "value": "[parameters('postgresServerFqdn')]"
                         },
                         {
                           "name": "DB_POSTGRESDB_PORT",
@@ -1073,11 +1211,15 @@
                         },
                         {
                           "name": "DB_POSTGRESDB_USER",
-                          "value": "placeholder-will-be-extracted-from-connection-string"
+                          "value": "[parameters('postgresAdminUsername')]"
                         },
                         {
                           "name": "DB_POSTGRESDB_PASSWORD",
-                          "secretRef": "postgres-connection-string"
+                          "value": "[parameters('postgresAdminPassword')]"
+                        },
+                        {
+                          "name": "DB_POSTGRESDB_SSL_ENABLED",
+                          "value": "true"
                         },
                         {
                           "name": "N8N_ENCRYPTION_KEY",
@@ -1096,33 +1238,16 @@
                           "value": "production"
                         },
                         {
+                          "name": "N8N_RUNNERS_ENABLED",
+                          "value": "true"
+                        },
+                        {
                           "name": "WEBHOOK_URL",
-                          "value": "[format('https://{0}.{1}', parameters('name'), reference(parameters('containerAppEnvironmentId')).defaultDomain)]"
+                          "value": "[format('https://{0}.{1}', parameters('name'), reference(parameters('containerAppEnvironmentId'), '2023-05-01').defaultDomain)]"
                         },
                         {
                           "name": "GENERIC_TIMEZONE",
                           "value": "UTC"
-                        }
-                      ],
-                      "probes": [
-                        {
-                          "type": "liveness",
-                          "httpGet": {
-                            "path": "/healthz",
-                            "port": "[parameters('port')]"
-                          },
-                          "initialDelaySeconds": 30,
-                          "periodSeconds": 10,
-                          "failureThreshold": 3
-                        },
-                        {
-                          "type": "readiness",
-                          "httpGet": {
-                            "path": "/healthz",
-                            "port": "[parameters('port')]"
-                          },
-                          "initialDelaySeconds": 5,
-                          "periodSeconds": 10
                         }
                       ]
                     }
@@ -1133,9 +1258,18 @@
                     "rules": [
                       {
                         "name": "http-rule",
-                        "http": {
+                        "custom": {
+                          "type": "http",
                           "metadata": {
                             "concurrentRequests": "10"
+                          }
+                        }
+                      },
+                      {
+                        "name": "azure-http",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "100"
                           }
                         }
                       }
@@ -1167,8 +1301,8 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'container-app-environment-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'postgres-private-endpoint-deployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]"
+        "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'storage-deployment')]"
       ]
     }
   ],

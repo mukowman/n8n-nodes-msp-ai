@@ -5,15 +5,20 @@ param baseName string = 'n8n'
 param location string = resourceGroup().location
 
 @description('The administrator username for the PostgreSQL server')
-param postgresAdminUsername string
+param postgresAdminUsername string = 'n8nadmin'
 
 @description('The administrator password for the PostgreSQL server')
 @secure()
-param postgresAdminPassword string
+param postgresAdminPassword string = ''
 
 @description('The encryption key for n8n')
 @secure()
-param n8nEncryptionKey string = newGuid()
+param n8nEncryptionKey string = ''
+
+var generatedPostgresPassword = postgresAdminPassword == ''
+  ? '${uniqueString(resourceGroup().id)}Pw1'
+  : postgresAdminPassword
+var generatedEncryptionKey = n8nEncryptionKey == '' ? uniqueString(resourceGroup().id) : n8nEncryptionKey
 
 @description('The n8n container image to use')
 param n8nContainerImage string = 'docker.io/n8nio/n8n:latest'
@@ -31,10 +36,9 @@ var logAnalyticsName = '${baseName}-logs-${uniqueSuffix}'
 var containerAppEnvName = '${baseName}-env-${uniqueSuffix}'
 var postgresServerName = '${baseName}-pg-${uniqueSuffix}'
 var n8nContainerAppName = '${baseName}-app-${uniqueSuffix}'
-var postgresDnsZoneName = 'privatelink.postgres.database.azure.com'
-var postgresPrivateEndpointName = '${baseName}-pg-pe-${uniqueSuffix}'
+var storageAccountName = replace('${baseName}st${uniqueSuffix}', '-', '')
 
-// Deploy networking resources (simplified - only for private endpoints)
+// Deploy networking resources
 module networking './modules/networking.bicep' = {
   name: 'networking-deployment'
   params: {
@@ -54,14 +58,22 @@ module logAnalytics './modules/log-analytics.bicep' = {
   }
 }
 
-// Deploy Container App Environment (using managed VNet)
-module containerAppEnvironment './modules/container-app-environment.bicep' = {
-  name: 'container-app-environment-deployment'
+// Deploy Storage Account for n8n data
+module storageAccount './modules/storage.bicep' = {
+  name: 'storage-deployment'
   params: {
-    name: containerAppEnvName
+    name: storageAccountName
     location: location
-    logAnalyticsWorkspaceId: logAnalytics.outputs.id
-    // Not providing infrastructureSubnetId to use managed VNet
+    tags: tags
+  }
+}
+
+// Deploy private DNS zone for PostgreSQL
+module privateDnsZone './modules/private-dns-zone.bicep' = {
+  name: 'private-dns-zone-deployment'
+  params: {
+    name: 'private.postgres.database.azure.com'
+    vnetId: networking.outputs.vnetId
     tags: tags
   }
 }
@@ -73,32 +85,32 @@ module postgresql './modules/postgresql.bicep' = {
     serverName: postgresServerName
     location: location
     administratorLogin: postgresAdminUsername
-    administratorLoginPassword: postgresAdminPassword
+    administratorLoginPassword: generatedPostgresPassword
+    version: '16'
+    serverEdition: 'Burstable'
+    vmName: 'Standard_B1ms'
+    storageSizeGB: 32
+    backupRetentionDays: 7
+    geoRedundantBackup: 'Disabled'
+    haEnabled: 'Disabled'
+    availabilityZone: ''
+    standbyAvailabilityZone: ''
+    storageAutogrow: 'Enabled'
+    subnetId: networking.outputs.postgresSubnetId
+    privateDnsZoneId: privateDnsZone.outputs.id
     databaseName: 'n8n'
     tags: tags
   }
 }
 
-// Deploy Private DNS Zone for PostgreSQL
-module postgresDnsZone './modules/private-dns-zone.bicep' = {
-  name: 'postgres-dns-zone-deployment'
+// Deploy Container App Environment
+module containerAppEnvironment './modules/container-app-environment.bicep' = {
+  name: 'container-app-environment-deployment'
   params: {
-    name: postgresDnsZoneName
-    vnetId: networking.outputs.vnetId
-    tags: tags
-  }
-}
-
-// Deploy Private Endpoint for PostgreSQL
-module postgresPrivateEndpoint './modules/private-endpoint.bicep' = {
-  name: 'postgres-private-endpoint-deployment'
-  params: {
-    name: postgresPrivateEndpointName
+    name: containerAppEnvName
     location: location
-    privateConnectionResourceId: postgresql.outputs.id
-    groupId: 'postgresqlServer'
-    subnetId: networking.outputs.privateEndpointsSubnetId
-    privateDnsZoneId: postgresDnsZone.outputs.id
+    logAnalyticsWorkspaceId: logAnalytics.outputs.id
+    infrastructureSubnetId: networking.outputs.containerAppsSubnetId
     tags: tags
   }
 }
@@ -106,16 +118,19 @@ module postgresPrivateEndpoint './modules/private-endpoint.bicep' = {
 // Deploy n8n Container App
 module n8nContainerApp './modules/n8n-container-app.bicep' = {
   name: 'n8n-container-app-deployment'
-  dependsOn: [
-    postgresPrivateEndpoint // Ensure private endpoint is created before container app
-  ]
   params: {
     name: n8nContainerAppName
     location: location
     containerAppEnvironmentId: containerAppEnvironment.outputs.id
     containerImage: n8nContainerImage
-    postgresConnectionString: postgresql.outputs.connectionString
-    encryptionKey: n8nEncryptionKey
+    postgresServerFqdn: postgresql.outputs.serverFqdn
+    postgresDbName: postgresql.outputs.databaseName
+    postgresAdminUsername: postgresAdminUsername
+    postgresAdminPassword: generatedPostgresPassword
+    encryptionKey: generatedEncryptionKey
+    ingressTrafficType: 'external'
+    storageAccountName: storageAccount.outputs.name
+    storageShareName: storageAccount.outputs.shareName
     tags: tags
   }
 }

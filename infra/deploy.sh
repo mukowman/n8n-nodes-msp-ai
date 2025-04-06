@@ -1,5 +1,40 @@
 #!/bin/bash
 
+# Exit on error
+set -e
+
+# Make scripts executable
+chmod +x "$(dirname "$0")/build-arm-template.sh"
+chmod +x "$(dirname "$0")/deploy.sh"
+
+# Change to the script's directory
+cd "$(dirname "$0")"
+
+# Build ARM template from Bicep
+echo "Building ARM template from Bicep files..."
+./build-arm-template.sh
+
+# # Register required resource providers
+# echo "Registering required resource providers..."
+# az provider register --namespace Microsoft.App
+# az provider register --namespace Microsoft.ContainerService
+# az provider register --namespace Microsoft.DBforPostgreSQL
+
+# echo "Waiting for resource providers to register..."
+# while true; do
+#     app_state=$(az provider show -n Microsoft.App --query registrationState -o tsv)
+#     container_state=$(az provider show -n Microsoft.ContainerService --query registrationState -o tsv)
+
+#     if [[ "$app_state" == "Registered" ]] && [[ "$container_state" == "Registered" ]]; then
+#         echo "All resource providers are registered"
+#         break
+#     else
+#         echo "Waiting for providers to register... App: $app_state, Container: $container_state"
+#         sleep 10
+#     fi
+# done
+
+
 # n8n Azure Infrastructure Deployment Script
 
 # Exit on error
@@ -7,7 +42,7 @@ set -e
 
 # Default values
 RESOURCE_GROUP="rg-n8n"
-LOCATION="westeurope"
+LOCATION="uksouth"
 DEPLOYMENT_NAME="n8n-deployment"
 PARAMETERS_FILE="main.parameters.json"
 

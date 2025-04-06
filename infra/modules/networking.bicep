@@ -10,8 +10,11 @@ param vnetAddressPrefix string = '10.0.0.0/16'
 @description('The address prefix for the container apps subnet')
 param containerAppsSubnetAddressPrefix string = '10.0.0.0/23'
 
+@description('The address prefix for the PostgreSQL subnet')
+param postgresSubnetAddressPrefix string = '10.0.2.0/24'
+
 @description('The address prefix for the private endpoints subnet')
-param privateEndpointsSubnetAddressPrefix string = '10.0.2.0/24'
+param privateEndpointsSubnetAddressPrefix string = '10.0.3.0/24'
 
 @description('Tags to apply to the resources')
 param tags object = {}
@@ -31,11 +34,19 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-05-01' = {
         name: 'container-apps-subnet'
         properties: {
           addressPrefix: containerAppsSubnetAddressPrefix
+          privateEndpointNetworkPolicies: 'Enabled'
+          privateLinkServiceNetworkPolicies: 'Enabled'
+        }
+      }
+      {
+        name: 'postgres-subnet'
+        properties: {
+          addressPrefix: postgresSubnetAddressPrefix
           delegations: [
             {
-              name: 'Microsoft.App.environments'
+              name: 'Microsoft.DBforPostgreSQL.flexibleServers'
               properties: {
-                serviceName: 'Microsoft.App/environments'
+                serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers'
               }
             }
           ]
@@ -57,6 +68,11 @@ resource containerAppsSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-05-
   name: 'container-apps-subnet'
 }
 
+resource postgresSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
+  parent: virtualNetwork
+  name: 'postgres-subnet'
+}
+
 resource privateEndpointsSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-05-01' existing = {
   parent: virtualNetwork
   name: 'private-endpoints-subnet'
@@ -65,4 +81,5 @@ resource privateEndpointsSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-
 output vnetId string = virtualNetwork.id
 output vnetName string = virtualNetwork.name
 output containerAppsSubnetId string = containerAppsSubnet.id
+output postgresSubnetId string = postgresSubnet.id
 output privateEndpointsSubnetId string = privateEndpointsSubnet.id

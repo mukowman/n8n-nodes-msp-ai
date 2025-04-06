@@ -37,6 +37,30 @@ export const ticketProperties: INodeProperties[] = [
 				action: 'Get a ticket',
 			},
 			{
+				name: 'Get Configurations',
+				value: 'getConfigurations',
+				description: 'Get configurations associated with a ticket',
+				action: 'Get configurations for a ticket',
+			},
+			{
+				name: 'Get Custom Field',
+				value: 'getCustomField',
+				description: 'Get a specific custom field value for a ticket',
+				action: 'Get a custom field value for a ticket',
+			},
+			{
+				name: 'Get Custom Fields',
+				value: 'getCustomFields',
+				description: 'Get all custom fields for service tickets',
+				action: 'Get custom fields for service tickets',
+			},
+			{
+				name: 'Update Custom Field',
+				value: 'updateCustomField',
+				description: 'Update a specific custom field value for a ticket',
+				action: 'Update a custom field value for a ticket',
+			},
+			{
 				name: 'Get Many',
 				value: 'getAll',
 				description: 'Get many tickets',
@@ -47,6 +71,24 @@ export const ticketProperties: INodeProperties[] = [
 				value: 'getNotes',
 				description: 'Get notes for a ticket',
 				action: 'Get notes for a ticket',
+			},
+			{
+				name: 'List Subtypes', // Added
+				value: 'listSubtypes',
+				description: 'List ticket subtypes for a board and type',
+				action: 'List ticket subtypes for a board and type',
+			},
+			{
+				name: 'List Types', // Added
+				value: 'listTypes',
+				description: 'List ticket types for a board',
+				action: 'List ticket types for a board',
+			},
+			{
+				name: 'List Documents',
+				value: 'listDocuments',
+				description: 'List documents attached to a ticket',
+				action: 'List documents for a ticket',
 			},
 			{
 				name: 'Search',
@@ -63,6 +105,38 @@ export const ticketProperties: INodeProperties[] = [
 		],
 		default: 'create',
 	},
+	// Fields for listTypes and listSubtypes
+	{
+		displayName: 'Board ID',
+		name: 'boardId',
+		type: 'string' as NodePropertyTypes, // Changed from 'options'
+		// Removed typeOptions for dynamic loading
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['listTypes', 'listSubtypes'],
+			},
+		},
+		description: 'The ID of the board to list types/subtypes for',
+	},
+	{
+		displayName: 'Type ID',
+		name: 'typeId',
+		type: 'string' as NodePropertyTypes, // Changed from 'options'
+		// Removed typeOptions and loadOptionsDependsOn
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['listSubtypes'],
+			},
+		},
+		description: 'The ID of the type to list subtypes for',
+	},
+	// Standard Ticket Fields
 	{
 		displayName: 'Ticket ID',
 		name: 'ticketId',
@@ -72,7 +146,17 @@ export const ticketProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['ticket'],
-				operation: ['get', 'update', 'delete', 'getNotes', 'addNote'],
+				operation: [
+					'get',
+					'update',
+					'delete',
+					'getNotes',
+					'addNote',
+					'getCustomField',
+					'updateCustomField',
+					'listDocuments', // Added
+					'getConfigurations',
+				],
 			},
 		},
 		description: 'The ID of the ticket',
@@ -91,6 +175,7 @@ export const ticketProperties: INodeProperties[] = [
 		},
 		description: 'The summary of the ticket',
 	},
+	// Fields for addNote
 	{
 		displayName: 'Note Text',
 		name: 'noteText',
@@ -144,49 +229,83 @@ export const ticketProperties: INodeProperties[] = [
 		},
 		description: 'Whether this note is a resolution',
 	},
+	// Fields for get/update Custom Field
 	{
-		displayName: 'Search Query',
-		name: 'searchQuery',
+		displayName: 'Custom Field',
+		name: 'customFieldId',
+		type: 'options' as NodePropertyTypes,
+		typeOptions: {
+			loadOptionsMethod: 'getCustomFields',
+		},
+		default: '',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['getCustomField', 'updateCustomField'], // Show for both get and update
+			},
+		},
+		description: 'The custom field to get or update',
+	},
+	{
+		displayName: 'Value',
+		name: 'customFieldValue',
 		type: 'string' as NodePropertyTypes,
 		default: '',
 		required: true,
 		displayOptions: {
 			show: {
 				resource: ['ticket'],
-				operation: ['search'],
+				operation: ['updateCustomField'], // Only show for update
 			},
 		},
-		description: 'Search query to filter tickets',
+		description: 'The new value for the custom field',
 	},
+	// Fields for getAll / search
 	{
 		displayName: 'Return All',
 		name: 'returnAll',
 		type: 'boolean' as NodePropertyTypes,
+		default: false,
 		displayOptions: {
 			show: {
 				resource: ['ticket'],
-				operation: ['getAll'],
+				operation: ['getAll', 'search', 'getNotes', 'listDocuments'], // Added getNotes, listDocuments
 			},
 		},
-		default: false,
 		description: 'Whether to return all results or only up to a given limit',
 	},
 	{
 		displayName: 'Limit',
 		name: 'limit',
 		type: 'number' as NodePropertyTypes,
+		default: 100, // Default to 100 for getAll/getNotes
 		displayOptions: {
 			show: {
 				resource: ['ticket'],
-				operation: ['getAll'],
+				operation: ['getAll', 'search', 'getNotes', 'listDocuments'], // Added getNotes, listDocuments
 				returnAll: [false],
 			},
 		},
 		typeOptions: {
 			minValue: 1,
+			maxValue: 1000, // ConnectWise API max page size
 		},
-		default: 100,
 		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'Conditions',
+		name: 'conditions',
+		type: 'string' as NodePropertyTypes,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['getAll', 'search', 'getNotes', 'listDocuments'], // Added getNotes, listDocuments
+			},
+		},
+		placeholder: 'status/ID=1 and priority/ID=3',
+		description: 'Query conditions to filter results (e.g., status/ID=1 and priority/ID=3)',
 	},
 	{
 		displayName: 'Order By',
@@ -196,20 +315,28 @@ export const ticketProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['ticket'],
-				operation: ['getAll', 'search'],
+				operation: ['getAll', 'search', 'getNotes', 'listDocuments'], // Added getNotes, listDocuments
 			},
 		},
-		description: 'Order results by specified field',
+		placeholder: 'priority/sort desc, ID asc',
+		description: 'Order results by specified field (e.g., priority/sort desc, ID asc)',
 	},
+	// Filters (Consider removing if 'Conditions' is preferred)
 	{
 		displayName: 'Filters',
 		name: 'filters',
 		type: 'collection' as NodePropertyTypes,
 		placeholder: 'Add Filter',
 		displayOptions: {
+			// Decide if this is needed alongside 'Conditions'
+			// show: {
+			// 	resource: ['ticket'],
+			// 	operation: ['getAll', 'search'],
+			// },
 			show: {
+				// Hide for now, prefer 'Conditions'
 				resource: ['ticket'],
-				operation: ['search'],
+				operation: [],
 			},
 		},
 		default: {},
@@ -218,44 +345,19 @@ export const ticketProperties: INodeProperties[] = [
 				displayName: 'Status',
 				name: 'status',
 				type: 'options' as NodePropertyTypes,
-				options: [
-					{
-						name: 'Open',
-						value: 'Open',
-					},
-					{
-						name: 'Closed',
-						value: 'Closed',
-					},
-					{
-						name: 'In Progress',
-						value: 'InProgress',
-					},
-				],
-				default: 'Open',
+				// Add options or load dynamically if possible
+				default: '',
 			},
 			{
 				displayName: 'Priority',
 				name: 'priority',
 				type: 'options' as NodePropertyTypes,
-				options: [
-					{
-						name: 'Low',
-						value: 'Low',
-					},
-					{
-						name: 'Medium',
-						value: 'Medium',
-					},
-					{
-						name: 'High',
-						value: 'High',
-					},
-				],
-				default: 'Medium',
+				// Add options or load dynamically if possible
+				default: '',
 			},
 		],
 	},
+	// Additional Fields for Create/Update
 	{
 		displayName: 'Additional Fields',
 		name: 'additionalFields',
@@ -270,66 +372,103 @@ export const ticketProperties: INodeProperties[] = [
 		default: {},
 		options: [
 			{
-				displayName: 'Board ID',
-				name: 'board',
+				displayName: 'Summary',
+				name: 'summary',
 				type: 'string' as NodePropertyTypes,
 				default: '',
-				description: 'The board ID for the ticket',
+				description: 'The summary of the ticket',
+			},
+			{
+				displayName: 'Board',
+				name: 'board',
+				type: 'options' as NodePropertyTypes,
+				typeOptions: {
+					loadOptionsMethod: 'getServiceBoards',
+				},
+				default: '',
+				description: 'The service board for the ticket',
+			},
+			{
+				displayName: 'Type',
+				name: 'type',
+				type: 'number' as NodePropertyTypes, // Changed from options
+				default: '',
+				description: 'The ID of the ticket type', // Updated description
+				typeOptions: {
+					numberPrecision: 0,
+				},
+			},
+			{
+				displayName: 'Subtype',
+				name: 'subType',
+				type: 'number' as NodePropertyTypes, // Changed from options
+				default: '',
+				description: 'The ID of the ticket subtype', // Updated description
+				typeOptions: {
+					numberPrecision: 0,
+				},
+			},
+			{
+				displayName: 'Agreement ID',
+				name: 'agreement',
+				type: 'number' as NodePropertyTypes, // Assuming ID is numeric
+				default: '',
+				description: 'The ID of the agreement to associate with this ticket',
+				typeOptions: {
+					numberPrecision: 0,
+				},
 			},
 			{
 				displayName: 'Company ID',
 				name: 'company',
-				type: 'string' as NodePropertyTypes,
+				type: 'number' as NodePropertyTypes, // Assuming ID is numeric
 				default: '',
-				description: 'The company associated with this ticket',
+				description: 'The ID of the company associated with the ticket',
+				typeOptions: {
+					numberPrecision: 0,
+				},
 			},
 			{
 				displayName: 'Contact ID',
 				name: 'contact',
-				type: 'string' as NodePropertyTypes,
+				type: 'number' as NodePropertyTypes, // Assuming ID is numeric
 				default: '',
-				description: 'The contact associated with this ticket',
+				description: 'The ID of the contact associated with the ticket',
+				typeOptions: {
+					numberPrecision: 0,
+				},
 			},
 			{
-				displayName: 'Priority',
+				displayName: 'Initial Description',
+				name: 'initialDescription',
+				type: 'string' as NodePropertyTypes,
+				typeOptions: {
+					rows: 4,
+				},
+				default: '',
+				description: 'The initial description of the ticket',
+			},
+			{
+				displayName: 'Priority ID',
 				name: 'priority',
-				type: 'options' as NodePropertyTypes,
-				options: [
-					{
-						name: 'Low',
-						value: 'Low',
-					},
-					{
-						name: 'Medium',
-						value: 'Medium',
-					},
-					{
-						name: 'High',
-						value: 'High',
-					},
-				],
-				default: 'Medium',
+				type: 'number' as NodePropertyTypes, // Assuming ID is numeric
+				default: '',
+				description: 'The ID of the priority level',
+				typeOptions: {
+					numberPrecision: 0,
+				},
 			},
 			{
-				displayName: 'Status',
+				displayName: 'Status ID',
 				name: 'status',
-				type: 'options' as NodePropertyTypes,
-				options: [
-					{
-						name: 'Open',
-						value: 'Open',
-					},
-					{
-						name: 'Closed',
-						value: 'Closed',
-					},
-					{
-						name: 'In Progress',
-						value: 'InProgress',
-					},
-				],
-				default: 'Open',
+				type: 'number' as NodePropertyTypes, // Assuming ID is numeric
+				default: '',
+				description: 'The ID of the ticket status',
+				typeOptions: {
+					numberPrecision: 0,
+				},
 			},
+			// Add other relevant fields as needed
 		],
 	},
 ];

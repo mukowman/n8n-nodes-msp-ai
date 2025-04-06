@@ -22,9 +22,24 @@ param minReplicas int = 1
 @description('The maximum number of replicas')
 param maxReplicas int = 3
 
-@description('The PostgreSQL connection string')
+@description('The PostgreSQL server FQDN')
+param postgresServerFqdn string
+
+@description('The PostgreSQL database name')
+param postgresDbName string
+
+@description('The PostgreSQL admin username')
+param postgresAdminUsername string
+
+@description('The PostgreSQL admin password')
 @secure()
-param postgresConnectionString string
+param postgresAdminPassword string
+
+@description('The storage account name')
+param storageAccountName string
+
+@description('The storage share name')
+param storageShareName string
 
 @description('The encryption key for n8n')
 @secure()
@@ -67,27 +82,39 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   properties: {
     managedEnvironmentId: containerAppEnvironmentId
     configuration: {
-      activeRevisionsMode: 'single'
-      ingress: ingressEnabled ? {
-        external: ingressTrafficType == 'external'
-        targetPort: targetPort
-        transport: ingressTransport
-        allowInsecure: ingressAllowInsecure
-        traffic: [
-          {
-            weight: 100
-            latestRevision: true
+      activeRevisionsMode: 'Single'
+      ingress: ingressEnabled
+        ? {
+            targetPort: targetPort
+            allowInsecure: ingressAllowInsecure
+            external: ingressTrafficType == 'external'
+            transport: ingressTransport
+            traffic: [
+              {
+                latestRevision: true
+                weight: 100
+              }
+            ]
+            corsPolicy: {
+              allowedOrigins: ['*']
+              allowedMethods: ['*']
+              allowedHeaders: ['*']
+            }
           }
-        ]
-      } : null
+        : null
       secrets: [
-        {
-          name: 'postgres-connection-string'
-          value: postgresConnectionString
-        }
         {
           name: 'encryption-key'
           value: encryptionKey
+        }
+      ]
+      registries: []
+      volumes: [
+        {
+          name: 'n8n-data'
+          storageName: storageAccountName
+          storageType: 'AzureFile'
+          shareName: storageShareName
         }
       ]
     }
@@ -100,6 +127,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             cpu: json(cpuCore)
             memory: '${memorySize}Gi'
           }
+          volumeMounts: [
+            {
+              volumeName: 'n8n-data'
+              mountPath: '/home/node/.n8n'
+            }
+          ]
           env: [
             {
               name: 'DB_TYPE'
@@ -107,11 +140,11 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'DB_POSTGRESDB_DATABASE'
-              value: 'n8n'
+              value: postgresDbName
             }
             {
               name: 'DB_POSTGRESDB_HOST'
-              value: 'placeholder-will-be-extracted-from-connection-string'
+              value: postgresServerFqdn
             }
             {
               name: 'DB_POSTGRESDB_PORT'
@@ -119,11 +152,15 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'DB_POSTGRESDB_USER'
-              value: 'placeholder-will-be-extracted-from-connection-string'
+              value: postgresAdminUsername
             }
             {
               name: 'DB_POSTGRESDB_PASSWORD'
-              secretRef: 'postgres-connection-string'
+              value: postgresAdminPassword
+            }
+            {
+              name: 'DB_POSTGRESDB_SSL_ENABLED'
+              value: 'true'
             }
             {
               name: 'N8N_ENCRYPTION_KEY'
@@ -142,33 +179,16 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: 'production'
             }
             {
+              name: 'N8N_RUNNERS_ENABLED'
+              value: 'true'
+            }
+            {
               name: 'WEBHOOK_URL'
-              value: 'https://${name}.${reference(containerAppEnvironmentId).defaultDomain}'
+              value: 'https://${name}.${reference(containerAppEnvironmentId, '2023-05-01').defaultDomain}'
             }
             {
               name: 'GENERIC_TIMEZONE'
               value: 'UTC'
-            }
-          ]
-          probes: [
-            {
-              type: 'liveness'
-              httpGet: {
-                path: '/healthz'
-                port: port
-              }
-              initialDelaySeconds: 30
-              periodSeconds: 10
-              failureThreshold: 3
-            }
-            {
-              type: 'readiness'
-              httpGet: {
-                path: '/healthz'
-                port: port
-              }
-              initialDelaySeconds: 5
-              periodSeconds: 10
             }
           ]
         }
@@ -179,9 +199,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         rules: [
           {
             name: 'http-rule'
-            http: {
+            custom: {
+              type: 'http'
               metadata: {
                 concurrentRequests: '10'
+              }
+            }
+          }
+          {
+            name: 'azure-http'
+            http: {
+              metadata: {
+                concurrentRequests: '100'
               }
             }
           }
@@ -193,5 +222,9 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
 
 output id string = containerApp.id
 output name string = containerApp.name
-output fqdn string = ingressEnabled && ingressTrafficType == 'external' ? containerApp.properties.configuration.ingress.fqdn : ''
-output url string = ingressEnabled && ingressTrafficType == 'external' ? 'https://${containerApp.properties.configuration.ingress.fqdn}' : ''
+output fqdn string = ingressEnabled && ingressTrafficType == 'external'
+  ? containerApp.properties.configuration.ingress.fqdn
+  : ''
+output url string = ingressEnabled && ingressTrafficType == 'external'
+  ? 'https://${containerApp.properties.configuration.ingress.fqdn}'
+  : ''

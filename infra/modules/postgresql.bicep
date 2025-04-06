@@ -11,45 +11,60 @@ param administratorLogin string
 @secure()
 param administratorLoginPassword string
 
-@description('Tags to apply to the resources')
-param tags object = {}
+@description('The subnet ID for the PostgreSQL server')
+param subnetId string
+
+@description('The private DNS zone ID for PostgreSQL')
+param privateDnsZoneId string
 
 @description('The PostgreSQL version')
-@allowed([
-  '11'
-  '12'
-  '13'
-  '14'
-  '15'
-])
-param postgresqlVersion string = '14'
+param version string = '16'
 
-@description('The SKU name for the PostgreSQL server')
-param skuName string = 'Standard_B1ms'
+@description('Server Edition')
+param serverEdition string = 'Burstable'
 
-@description('The storage size for the PostgreSQL server in MB')
+@description('Virtual machine name')
+param vmName string = 'Standard_B1ms'
+
+@description('The storage size in GB')
 param storageSizeGB int = 32
 
-@description('The backup retention days for the PostgreSQL server')
+@description('The backup retention days')
 @minValue(7)
 @maxValue(35)
 param backupRetentionDays int = 7
 
+@description('Enable/disable geo-redundant backup')
+param geoRedundantBackup string = 'Disabled'
+
+@description('Enable/disable high availability')
+param haEnabled string = 'Disabled'
+
+@description('Availability zone')
+param availabilityZone string = ''
+
+@description('Standby availability zone')
+param standbyAvailabilityZone string = ''
+
+@description('Enable/disable storage autogrow')
+param storageAutogrow string = 'Enabled'
+
 @description('The database name')
 param databaseName string = 'n8n'
+
+@description('Tags to apply to the resources')
+param tags object = {}
 
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2022-12-01' = {
   name: serverName
   location: location
   tags: tags
   sku: {
-    name: skuName
-    tier: contains(skuName, 'Burstable')
-      ? 'Burstable'
-      : contains(skuName, 'Standard') ? 'GeneralPurpose' : 'MemoryOptimized'
+    name: vmName
+    tier: serverEdition
   }
   properties: {
-    version: postgresqlVersion
+    version: version
     administratorLogin: administratorLogin
     administratorLoginPassword: administratorLoginPassword
     storage: {
@@ -57,13 +72,23 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2022-12-01' =
     }
     backup: {
       backupRetentionDays: backupRetentionDays
-      geoRedundantBackup: 'Disabled'
+      geoRedundantBackup: geoRedundantBackup
     }
     highAvailability: {
-      mode: 'Disabled'
+      mode: haEnabled
+      standbyAvailabilityZone: standbyAvailabilityZone
     }
+    availabilityZone: availabilityZone
     network: {
-      publicNetworkAccess: 'Disabled'
+      delegatedSubnetResourceId: subnetId
+      privateDnsZoneArmResourceId: privateDnsZoneId
+      firewallRules: [
+        {
+          name: 'AllowAll'
+          startIpAddress: '0.0.0.0'
+          endIpAddress: '255.255.255.255'
+        }
+      ]
     }
   }
 }
@@ -77,9 +102,9 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2022-12-0
   }
 }
 
-@description('The connection string for the PostgreSQL database')
-output connectionString string = 'postgresql://${administratorLogin}:${administratorLoginPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/${databaseName}'
+var serverHash = split(postgresServer.name, '-')[last(range(0, length(split(postgresServer.name, '-'))))]
+
+output connectionString string = 'postgresql://${administratorLogin}:${administratorLoginPassword}@${serverHash}.private.postgres.database.azure.com:5432/${databaseName}'
 output serverName string = postgresServer.name
-output serverFqdn string = postgresServer.properties.fullyQualifiedDomainName
+output serverFqdn string = '${serverHash}.private.postgres.database.azure.com'
 output databaseName string = database.name
-output id string = postgresServer.id

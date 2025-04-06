@@ -5,7 +5,7 @@ setlocal enabledelayedexpansion
 
 :: Default values
 set RESOURCE_GROUP=rg-n8n
-set LOCATION=westeurope
+set LOCATION=uksouth
 set DEPLOYMENT_NAME=n8n-deployment
 set PARAMETERS_FILE=main.parameters.json
 

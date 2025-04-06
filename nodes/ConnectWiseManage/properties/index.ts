@@ -15,6 +15,7 @@ import { purchaseOrderProperties } from './purchaseOrderProperties';
 import { scheduleProperties } from './scheduleProperties';
 import { ticketProperties } from './ticketProperties';
 import { timeProperties } from './timeProperties';
+import { documentProperties } from './documentProperties'; // Added
 
 const resourceProperty: INodeProperties = {
 	displayName: 'Resource',
@@ -41,6 +42,10 @@ const resourceProperty: INodeProperties = {
 		{
 			name: 'Contact',
 			value: 'contact',
+		},
+		{
+			name: 'Document',
+			value: 'document',
 		},
 		{
 			name: 'Expense',
@@ -152,4 +157,5 @@ export const properties: INodeProperties[] = [
 	...scheduleProperties,
 	...ticketProperties,
 	...timeProperties,
+	...documentProperties, // Added
 ];

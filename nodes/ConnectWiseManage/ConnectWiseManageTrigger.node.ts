@@ -10,6 +10,13 @@ import {
 	NodeConnectionType,
 } from 'n8n-workflow';
 
+interface ConnectWiseError extends Error {
+	error?: {
+		code?: string;
+		errors?: Array<{ code?: string }>;
+	};
+}
+
 export class ConnectWiseManageTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'ConnectWise Manage Trigger',
@@ -38,6 +45,36 @@ export class ConnectWiseManageTrigger implements INodeType {
 			},
 		],
 		properties: [
+			{
+				displayName: 'Filter Notes',
+				name: 'filterNotes',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						type: ['Ticket'],
+					},
+				},
+				description: 'Whether to filter ticket notes by type',
+			},
+			{
+				displayName: 'Note Types',
+				name: 'noteTypes',
+				type: 'multiOptions',
+				default: [],
+				displayOptions: {
+					show: {
+						type: ['Ticket'],
+						filterNotes: [true],
+					},
+				},
+				options: [
+					{ name: 'Detail Description', value: 'detailDescription' },
+					{ name: 'Internal Analysis', value: 'internalAnalysis' },
+					{ name: 'Resolution', value: 'resolution' },
+				],
+				description: 'Types of notes to include in the trigger',
+			},
 			{
 				displayName: 'Event Type',
 				name: 'type',
@@ -162,8 +199,9 @@ export class ConnectWiseManageTrigger implements INodeType {
 							}
 							console.log(`Found ${options.length} board options`);
 						}
-					} catch (error) {
-						console.error('Error loading board options:', error);
+					} catch (error: unknown) {
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+						console.error('Error loading board options:', errorMessage);
 					}
 				}
 
@@ -203,10 +241,11 @@ export class ConnectWiseManageTrigger implements INodeType {
 					}
 
 					return false;
-				} catch (error) {
+				} catch (error: unknown) {
+					const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 					throw new NodeOperationError(
 						this.getNode(),
-						`ConnectWise Trigger Error: ${error.message}`,
+						`ConnectWise Trigger Error: ${errorMessage}`,
 					);
 				}
 			},
@@ -307,9 +346,10 @@ export class ConnectWiseManageTrigger implements INodeType {
 						}
 
 						console.log(`Cleaned up ${deletedCount} webhook(s)`);
-					} catch (error) {
-						console.error('Error cleaning up webhooks:', error);
-						throw error;
+					} catch (error: unknown) {
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+						console.error('Error cleaning up webhooks:', errorMessage);
+						throw new NodeOperationError(this.getNode(), errorMessage);
 					}
 				};
 
@@ -378,9 +418,10 @@ export class ConnectWiseManageTrigger implements INodeType {
 						console.error('Error creating webhook:', error);
 
 						// If we get an ObjectExists error, retry with more aggressive cleanup
+						const cwError = error as ConnectWiseError;
 						if (
-							error.error?.code === 'InvalidObject' &&
-							error.error?.errors?.[0]?.code === 'ObjectExists' &&
+							cwError.error?.code === 'InvalidObject' &&
+							cwError.error?.errors?.[0]?.code === 'ObjectExists' &&
 							retryCount < 3
 						) {
 							console.log(`Webhook exists, attempting cleanup (attempt ${retryCount + 1})`);
@@ -443,9 +484,10 @@ export class ConnectWiseManageTrigger implements INodeType {
 							);
 						}
 
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 						throw new NodeOperationError(
 							this.getNode(),
-							`ConnectWise Trigger Error: ${error.message}`,
+							`ConnectWise Trigger Error: ${errorMessage}`,
 						);
 					}
 				};
@@ -475,10 +517,11 @@ export class ConnectWiseManageTrigger implements INodeType {
 					delete webhookData.webhookId;
 					return true;
 				} catch (error) {
-					console.error('Error deleting webhook:', error.message);
+					const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+					console.error('Error deleting webhook:', errorMessage);
 					throw new NodeOperationError(
 						this.getNode(),
-						`ConnectWise Trigger Error: ${error.message}`,
+						`ConnectWise Trigger Error: ${errorMessage}`,
 					);
 				}
 			},
@@ -487,8 +530,43 @@ export class ConnectWiseManageTrigger implements INodeType {
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 		const req = this.getRequestObject();
+		const body = req.body;
+
+		const nodeParameters = this.getNodeParameter('type') as string;
+		if (nodeParameters !== 'Ticket' || !body.type || body.type !== 'Ticket') {
+			return {
+				workflowData: [this.helpers.returnJsonArray(body)],
+			};
+		}
+
+		// Check if we should filter notes
+		const filterNotes = this.getNodeParameter('filterNotes', false) as boolean;
+		if (!filterNotes || !body.notes || !body.notes[0]) {
+			return {
+				workflowData: [this.helpers.returnJsonArray(body)],
+			};
+		}
+
+		// Get selected note types
+		const selectedNoteTypes = this.getNodeParameter('noteTypes', []) as string[];
+		if (selectedNoteTypes.length === 0) {
+			return {
+				workflowData: [this.helpers.returnJsonArray(body)],
+			};
+		}
+
+		// Check if the note matches any of the selected types
+		const note = body.notes[0];
+		const matchesType = selectedNoteTypes.some((type) => note[type] === true);
+
+		if (!matchesType) {
+			return {
+				workflowData: [], // Return empty if note type doesn't match selection
+			};
+		}
+
 		return {
-			workflowData: [this.helpers.returnJsonArray(req.body)],
+			workflowData: [this.helpers.returnJsonArray(body)],
 		};
 	}
 }

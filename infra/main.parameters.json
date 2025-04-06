@@ -6,26 +6,16 @@
 			"value": "n8n"
 		},
 		"location": {
-			"value": "westeurope"
+			"value": "uksouth"
 		},
 		"postgresAdminUsername": {
 			"value": "n8nadmin"
 		},
 		"postgresAdminPassword": {
-			"reference": {
-				"keyVault": {
-					"id": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.KeyVault/vaults/{keyvault-name}"
-				},
-				"secretName": "postgresAdminPassword"
-			}
+			"value": ""
 		},
 		"n8nEncryptionKey": {
-			"reference": {
-				"keyVault": {
-					"id": "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.KeyVault/vaults/{keyvault-name}"
-				},
-				"secretName": "n8nEncryptionKey"
-			}
+			"value": ""
 		},
 		"n8nContainerImage": {
 			"value": "docker.io/n8nio/n8n:latest"

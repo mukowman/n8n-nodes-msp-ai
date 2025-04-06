@@ -1,6 +1,6 @@
 {
 	"name": "@adamhancock/n8n-nodes-msp-ai",
-	"version": "0.1.10",
+	"version": "0.1.11",
 	"description": "Custom n8n nodes for MSPs",
 	"keywords": [
 		"n8n-community-node-package"
@@ -53,6 +53,6 @@
 		"typescript": "^5.5.3"
 	},
 	"peerDependencies": {
-		"n8n-workflow": "^1.79.1"
+		"n8n-workflow": "*"
 	}
 }

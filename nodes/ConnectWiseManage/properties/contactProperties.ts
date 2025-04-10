@@ -39,8 +39,14 @@ export const contactProperties: INodeProperties[] = [
 			{
 				name: 'Search',
 				value: 'search',
-				description: 'Search contacts',
+				description: 'Search contacts using a generic query',
 				action: 'Search contacts',
+			},
+			{
+				name: 'Search by Phone',
+				value: 'searchByPhone',
+				description: 'Search contacts by phone number',
+				action: 'Search contacts by phone',
 			},
 			{
 				name: 'Update',
@@ -105,7 +111,22 @@ export const contactProperties: INodeProperties[] = [
 				operation: ['search'],
 			},
 		},
-		description: 'Search query to filter contacts',
+		description:
+			'Search query to filter contacts. Use conditions like `firstName="John"` or `lastName like "Smith%"`.',
+	},
+	{
+		displayName: 'Phone Number',
+		name: 'phoneNumber',
+		type: 'string' as NodePropertyTypes,
+		default: '',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['searchByPhone'],
+			},
+		},
+		description: 'The phone number to search for (exact match)',
 	},
 	{
 		displayName: 'Return All',
@@ -114,7 +135,7 @@ export const contactProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['getAll'],
+				operation: ['getAll', 'search', 'searchByPhone'], // Added searchByPhone
 			},
 		},
 		default: false,
@@ -127,7 +148,7 @@ export const contactProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['getAll'],
+				operation: ['getAll', 'search', 'searchByPhone'], // Added searchByPhone
 				returnAll: [false],
 			},
 		},
@@ -145,7 +166,7 @@ export const contactProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['getAll', 'search'],
+				operation: ['getAll', 'search', 'searchByPhone'], // Added searchByPhone
 			},
 		},
 		description: 'Order results by specified field',
@@ -186,7 +207,7 @@ export const contactProperties: INodeProperties[] = [
 				description: 'The email address of the contact',
 			},
 			{
-				displayName: 'Phone Number',
+				displayName: 'Phone Number', // This is for create/update, distinct from the search field
 				name: 'phoneNumber',
 				type: 'string' as NodePropertyTypes,
 				default: '',

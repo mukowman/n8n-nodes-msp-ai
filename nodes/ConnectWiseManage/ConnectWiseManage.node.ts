@@ -11,7 +11,14 @@ import {
 
 // Define interfaces and types
 // Type definitions
-export type StandardOperation = 'create' | 'get' | 'getAll' | 'update' | 'delete' | 'search';
+export type StandardOperation =
+	| 'create'
+	| 'get'
+	| 'getAll'
+	| 'update'
+	| 'delete'
+	| 'search'
+	| 'searchByPhone';
 export type SpecialOperation =
 	| 'getNotes'
 	| 'addNote'
@@ -493,7 +500,7 @@ export class ConnectWiseManage implements INodeType {
 			].includes(op);
 
 		const isStandardOperation = (op: string): op is StandardOperation =>
-			['create', 'get', 'getAll', 'update', 'delete', 'search'].includes(op);
+			['create', 'get', 'getAll', 'update', 'delete', 'search', 'searchByPhone'].includes(op);
 
 		try {
 			// Get parameters
@@ -527,6 +534,8 @@ export class ConnectWiseManage implements INodeType {
 					body: Object.keys(body).length > 0 ? body : undefined,
 					qs: Object.keys(qs).length > 0 ? qs : undefined,
 				};
+
+				console.debug('DEBUG: Making API request:', { options }); // Added debug log
 
 				try {
 					return await this.helpers.requestWithAuthentication.call(
@@ -1119,22 +1128,74 @@ export class ConnectWiseManage implements INodeType {
 								break;
 							}
 
+							case 'searchByPhone': {
+								if (resource !== 'contact') {
+									throw new NodeOperationError(
+										node,
+										`The operation "${operation}" is not supported for resource "${resource}"`,
+									);
+								}
+								// Get the config from resourceConfig
+								const endpoint = `${baseUrl}/${resourceConfig[resource].endpoint}`;
+
+								const phoneNumber = this.getNodeParameter('phoneNumber', i) as string;
+								const returnAll = this.getNodeParameter('returnAll', i, false) as boolean;
+								const limit = this.getNodeParameter('limit', i) as number | undefined;
+								const orderBy = this.getNodeParameter('orderBy', i) as string | undefined;
+
+								const qs: IDataObject = {
+									childConditions: `communicationItems/value like "${phoneNumber}" AND communicationItems/communicationType = 'Phone'`,
+								};
+
+								if (orderBy) {
+									qs.orderBy = orderBy;
+								}
+
+								if (returnAll) {
+									let allData: IDataObject[] = [];
+									let currentPage = 1;
+									let moreData = true;
+									const pageSize = 1000;
+
+									while (moreData) {
+										qs.page = currentPage;
+										qs.pageSize = pageSize;
+										const pageData = await makeApiRequest(Methods.GET, endpoint, {}, qs);
+										if (Array.isArray(pageData) && pageData.length > 0) {
+											allData = allData.concat(pageData);
+											currentPage++;
+											if (pageData.length < pageSize) {
+												moreData = false;
+											}
+										} else {
+											moreData = false;
+										}
+									}
+									responseData = allData;
+								} else {
+									qs.pageSize = limit ?? 100;
+									responseData = await makeApiRequest(Methods.GET, endpoint, {}, qs);
+								}
+								break;
+							}
 							default:
 								throw new NodeOperationError(
 									node,
 									`The Operation '${operation}' is not supported for resource '${resource}'`,
 								);
-						}
-					}
+						} // End of switch statement
+					} // End of if (responseData === null ...)
 
-					// Format the response data
+					// Format the response data (This should be outside the 'if', but inside the 'try')
 					if (responseData !== null) {
 						if (operation === 'get' || !Array.isArray(responseData)) {
+							// Handle single item response or non-array response
 							returnData.push({
 								json: responseData as IDataObject,
 								pairedItem: { item: i },
 							});
 						} else {
+							// Handle array response
 							returnData.push(
 								...responseData.map((item) => ({
 									json: item,
@@ -1143,28 +1204,45 @@ export class ConnectWiseManage implements INodeType {
 							);
 						}
 					}
+					// Catch block for the inner try
 				} catch (error: Error | unknown) {
 					if (this.continueOnFail()) {
 						returnData.push({
 							json: {
-								error: error instanceof Error ? error.message : 'Unknown error occurred',
+								error: error instanceof Error ? error.message : JSON.stringify(error), // Stringify unknown errors
 							},
+							pairedItem: { item: i }, // Include pairedItem for context
 						});
-						continue;
+						continue; // Continue to the next item in the loop
 					}
+					// If not continuing on fail, wrap and re-throw the error
+					if (error instanceof NodeOperationError) {
+						// If it's already a NodeOperationError, add itemIndex if missing
+						error.context = { ...error.context, itemIndex: i };
+						throw error;
+					}
+					// Wrap other errors in NodeOperationError
 					throw new NodeOperationError(
 						node,
-						error instanceof Error ? error.message : 'Unknown error occurred',
+						error instanceof Error ? error.message : 'Unknown error occurred during item execution',
+						{ itemIndex: i }, // Add itemIndex for context
 					);
 				}
-			}
+			} // End of for loop
 
-			return [returnData];
+			return [returnData]; // Return successful results
+			// Catch block for the outer try (errors outside the loop)
 		} catch (error: Error | unknown) {
+			// If the node fails, throw the error
+			if (error instanceof NodeOperationError) {
+				// Re-throw NodeOperationErrors directly
+				throw error;
+			}
+			// Wrap other errors
 			throw new NodeOperationError(
 				node,
-				error instanceof Error ? error.message : 'Unknown error occurred',
+				error instanceof Error ? error.message : 'Unknown error occurred during node execution',
 			);
 		}
-	}
-}
+	} // End of execute method
+} // End of class ConnectWiseManage with semi-colon

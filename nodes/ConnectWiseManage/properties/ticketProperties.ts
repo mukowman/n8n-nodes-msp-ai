@@ -13,6 +13,12 @@ export const ticketProperties: INodeProperties[] = [
 		},
 		options: [
 			{
+				name: 'Get by Contact',
+				value: 'getByContact',
+				description: 'Get tickets by contact ID',
+				action: 'Get tickets by contact',
+			},
+			{
 				name: 'Add Note',
 				value: 'addNote',
 				description: 'Add a note to a ticket',
@@ -104,6 +110,52 @@ export const ticketProperties: INodeProperties[] = [
 			},
 		],
 		default: 'create',
+	},
+	{
+		displayName: 'Contact ID',
+		name: 'contactId',
+		type: 'string' as NodePropertyTypes,
+		default: '',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['getByContact'],
+			},
+		},
+		description: 'The ID of the contact to get tickets for',
+	},
+	// Extend existing getAll fields to getByContact
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean' as NodePropertyTypes,
+		default: false,
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['getByContact'],
+			},
+		},
+		description: 'Whether to return all results or only up to a given limit',
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number' as NodePropertyTypes,
+		default: 100,
+		displayOptions: {
+			show: {
+				resource: ['ticket'],
+				operation: ['getByContact'],
+				returnAll: [false],
+			},
+		},
+		typeOptions: {
+			minValue: 1,
+			maxValue: 1000,
+		},
+		description: 'Max number of results to return',
 	},
 	// Fields for listTypes and listSubtypes
 	{

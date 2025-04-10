@@ -18,7 +18,8 @@ export type StandardOperation =
 	| 'update'
 	| 'delete'
 	| 'search'
-	| 'searchByPhone';
+	| 'searchByPhone'
+	| 'getByContact';
 export type SpecialOperation =
 	| 'getNotes'
 	| 'addNote'
@@ -500,7 +501,16 @@ export class ConnectWiseManage implements INodeType {
 			].includes(op);
 
 		const isStandardOperation = (op: string): op is StandardOperation =>
-			['create', 'get', 'getAll', 'update', 'delete', 'search', 'searchByPhone'].includes(op);
+			[
+				'create',
+				'get',
+				'getAll',
+				'update',
+				'delete',
+				'search',
+				'searchByPhone',
+				'getByContact',
+			].includes(op);
 
 		try {
 			// Get parameters
@@ -870,6 +880,62 @@ export class ConnectWiseManage implements INodeType {
 									Methods.GET,
 									`${baseUrl}/${currentResource.endpoint}/${id}`,
 								);
+								break;
+							}
+
+							case 'getByContact': {
+								const contactId = this.getNodeParameter('contactId', i) as string;
+								const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+								const limit = this.getNodeParameter('limit', i, 100) as number;
+
+								// Initialize variables for pagination
+								let page = 1;
+								const pageSize = returnAll ? 1000 : limit;
+								let allData: IDataObject[] = [];
+
+								// Set initial query parameters
+								const qs: IDataObject = {
+									conditions: `contact/id=${contactId}`,
+									pageSize,
+									page,
+								};
+
+								// Make initial request
+								let response = await makeApiRequest(
+									Methods.GET,
+									`${baseUrl}/${currentResource.endpoint}`,
+									{},
+									qs,
+								);
+
+								// If response is an array, add it to our results
+								if (Array.isArray(response)) {
+									allData = [...response];
+
+									// Continue fetching pages until we have all data
+									while (returnAll && response.length === pageSize) {
+										page++;
+										qs.page = page;
+
+										response = await makeApiRequest(
+											Methods.GET,
+											`${baseUrl}/${currentResource.endpoint}`,
+											{},
+											qs,
+										);
+
+										if (Array.isArray(response)) {
+											allData.push(...response);
+										}
+									}
+								}
+
+								responseData = allData;
+
+								// If not returning all, limit the results
+								if (!returnAll && Array.isArray(responseData)) {
+									responseData = responseData.slice(0, limit);
+								}
 								break;
 							}
 

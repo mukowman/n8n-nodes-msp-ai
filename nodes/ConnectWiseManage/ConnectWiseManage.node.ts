@@ -18,7 +18,7 @@ export type StandardOperation =
 	| 'update'
 	| 'delete'
 	| 'search'
-	| 'searchByPhone'
+	| 'getByPhoneNumber' // Renamed from searchByPhone for consistency
 	| 'getByContact';
 export type SpecialOperation =
 	| 'getNotes'
@@ -508,7 +508,7 @@ export class ConnectWiseManage implements INodeType {
 				'update',
 				'delete',
 				'search',
-				'searchByPhone',
+				'getByPhoneNumber',
 				'getByContact',
 			].includes(op);
 
@@ -1194,53 +1194,46 @@ export class ConnectWiseManage implements INodeType {
 								break;
 							}
 
-							case 'searchByPhone': {
-								if (resource !== 'contact') {
+							case 'getByPhoneNumber': {
+								// This operation searches contacts by phone and returns the associated company.
+								const phoneNumber = this.getNodeParameter('phoneNumber', i) as string;
+								if (!phoneNumber) {
 									throw new NodeOperationError(
-										node,
-										`The operation "${operation}" is not supported for resource "${resource}"`,
+										this.getNode(),
+										'Phone Number is required for getByPhoneNumber operation.',
+										{ itemIndex: i },
 									);
 								}
-								// Get the config from resourceConfig
-								const endpoint = `${baseUrl}/${resourceConfig[resource].endpoint}`;
 
-								const phoneNumber = this.getNodeParameter('phoneNumber', i) as string;
-								const returnAll = this.getNodeParameter('returnAll', i, false) as boolean;
-								const limit = this.getNodeParameter('limit', i) as number | undefined;
-								const orderBy = this.getNodeParameter('orderBy', i) as string | undefined;
-
+								// Target the contacts endpoint
+								const contactsEndpoint = resourceConfig['contact'].endpoint; // Use contact config
+								const uri = `${credentials.siteUrl}/v4_6_release/apis/3.0/${contactsEndpoint}`;
 								const qs: IDataObject = {
-									childConditions: `communicationItems/value like "${phoneNumber}" AND communicationItems/communicationType = 'Phone'`,
+									// Use childConditions to search contact communication items
+									childConditions: `communicationItems/value like "%${phoneNumber}%" AND communicationItems/communicationType = 'Phone'`,
+									// Include company details in the response
+									fields: 'id,firstName,lastName,company',
+									// We only need the first result
+									pageSize: 1,
 								};
 
-								if (orderBy) {
-									qs.orderBy = orderBy;
-								}
+								// Call makeApiRequest for contacts
+								const contactsResponse = await makeApiRequest(Methods.GET, uri, {}, qs);
 
-								if (returnAll) {
-									let allData: IDataObject[] = [];
-									let currentPage = 1;
-									let moreData = true;
-									const pageSize = 1000;
-
-									while (moreData) {
-										qs.page = currentPage;
-										qs.pageSize = pageSize;
-										const pageData = await makeApiRequest(Methods.GET, endpoint, {}, qs);
-										if (Array.isArray(pageData) && pageData.length > 0) {
-											allData = allData.concat(pageData);
-											currentPage++;
-											if (pageData.length < pageSize) {
-												moreData = false;
-											}
-										} else {
-											moreData = false;
-										}
+								// Process the response
+								if (Array.isArray(contactsResponse) && contactsResponse.length > 0) {
+									const firstContact = contactsResponse[0];
+									// Extract the company object from the first contact
+									if (firstContact.company) {
+										// Return only the company object as a single-item array
+										responseData = [firstContact.company];
+									} else {
+										// Contact found but no associated company
+										responseData = [];
 									}
-									responseData = allData;
 								} else {
-									qs.pageSize = limit ?? 100;
-									responseData = await makeApiRequest(Methods.GET, endpoint, {}, qs);
+									// No contacts found for that phone number
+									responseData = [];
 								}
 								break;
 							}

@@ -43,6 +43,12 @@ export const companyProperties: INodeProperties[] = [
 				action: 'Search companies',
 			},
 			{
+				name: 'Get by Phone Number',
+				value: 'getByPhoneNumber',
+				description: 'Find a company by its phone number',
+				action: 'Get a company by phone number',
+			},
+			{
 				name: 'Update',
 				value: 'update',
 				description: 'Update a company',
@@ -92,6 +98,20 @@ export const companyProperties: INodeProperties[] = [
 			},
 		},
 		description: 'Search query to filter companies',
+	},
+	{
+		displayName: 'Phone Number',
+		name: 'phoneNumber',
+		type: 'string' as NodePropertyTypes,
+		default: '',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['company'],
+				operation: ['getByPhoneNumber'],
+			},
+		},
+		description: 'The phone number to search for',
 	},
 	{
 		displayName: 'Return All',

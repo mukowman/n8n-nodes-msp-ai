@@ -1,6 +1,6 @@
 {
 	"name": "@adamhancock/n8n-nodes-msp-ai",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"description": "Custom n8n nodes for MSPs",
 	"keywords": [
 		"n8n-community-node-package"
@@ -35,11 +35,14 @@
 	"n8n": {
 		"n8nNodesApiVersion": 1,
 		"credentials": [
-			"dist/credentials/ConnectWiseManageApi.credentials.js"
+			"dist/credentials/ConnectWiseManageApi.credentials.js",
+			"dist/credentials/SmilebackApi.credentials.js"
 		],
 		"nodes": [
 			"dist/nodes/ConnectWiseManage/ConnectWiseManage.node.js",
-			"dist/nodes/ConnectWiseManage/ConnectWiseManageTrigger.node.js"
+			"dist/nodes/ConnectWiseManage/ConnectWiseManageTrigger.node.js",
+			"dist/nodes/Smileback/Smileback.node.js",
+			"dist/nodes/Smileback/SmilebackTrigger.node.js"
 		]
 	},
 	"devDependencies": {
@@ -54,5 +57,8 @@
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"
+	},
+	"dependencies": {
+		"dayjs": "^1.11.13"
 	}
 }

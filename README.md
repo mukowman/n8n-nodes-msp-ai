@@ -1,8 +1,8 @@
-![n8n ConnectWise Manage Integration for MSP Automation](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+![n8n ConnectWise Manage and Smileback Integration for MSP Automation](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
 
-# n8n ConnectWise Manage Integration for MSP Automation
+# n8n ConnectWise Manage and SmileBack Integration for MSP Automation
 
-This repository contains a powerful n8n integration for ConnectWise Manage, specifically designed for MSPs (Managed Service Providers) to automate their workflows and operations. It includes both the ConnectWise Manage nodes for n8n and infrastructure code to deploy n8n with Azure Container Apps for a secure, scalable automation platform.
+This repository contains powerful n8n integrations for ConnectWise Manage and SmileBack, specifically designed for MSPs (Managed Service Providers) to automate their workflows and operations. It includes both ConnectWise Manage and SmileBack nodes for n8n and infrastructure code to deploy n8n with Azure Container Apps for a secure, scalable automation platform.
 
 [![Deploy n8n with ConnectWise Manage Integration to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fadamhancock%2Fn8n-nodes-msp-ai%2Fmain%2Finfra%2Fazuredeploy.json)
 [![Sponsor me](https://img.shields.io/static/v1?label=Sponsor&message=❤&logo=GitHub&color=ff69b4)](https://github.com/sponsors/adamhancock)
@@ -11,7 +11,7 @@ This repository contains a powerful n8n integration for ConnectWise Manage, spec
 
 Streamline your MSP operations by automating ConnectWise Manage workflows with n8n. This integration enables you to build powerful automation workflows that connect ConnectWise Manage with other tools in your MSP tech stack.
 
-### 🔄 ConnectWise Manage Integration Features
+### 🔄 Integration Features
 
 This package provides comprehensive integration with ConnectWise Manage API, allowing you to:
 
@@ -23,9 +23,9 @@ This package provides comprehensive integration with ConnectWise Manage API, all
 - **Real-time notifications** - Set up webhooks to trigger workflows based on ConnectWise Manage events
 - **Custom workflow automation** - Build complex automation workflows specific to your MSP needs
 
-### 📊 Supported ConnectWise Manage Resources
+### 📊 Supported Resources
 
-The integration supports comprehensive operations on these ConnectWise Manage resources:
+#### ConnectWise Manage Resources
 
 - **Service Tickets** - Manage tickets, add notes, track status changes
 - **Companies** - Create and update client companies
@@ -42,6 +42,19 @@ The integration supports comprehensive operations on these ConnectWise Manage re
 - **Purchase Orders** - Manage procurement
 - **Product Catalog** - Access product information
 - **Schedules** - Manage scheduling
+
+#### SmileBack Resources
+
+The SmileBack integration supports operations on these resources:
+
+- **Feedback** - Collect and manage customer feedback
+- **CSAT Surveys** - Track Customer Satisfaction scores
+- **NPS Surveys** - Manage Net Promoter Score surveys
+- **Survey Responses** - Access detailed customer responses
+- **Reports** - Generate feedback analytics and reports
+- **Tags** - Manage feedback categorization
+- **Users** - Handle user management
+- **Teams** - Organize and manage team structures
 
 ## 🏗️ Azure Deployment Infrastructure
 
@@ -67,7 +80,9 @@ To develop or use this integration, you need:
   ```
   pnpm install n8n -g
   ```
-* **ConnectWise Manage API credentials** - You'll need access to your ConnectWise Manage instance
+* **API Credentials** - You'll need:
+  * ConnectWise Manage API credentials from your instance
+  * SmileBack API credentials from your account
 
 ## 📦 Installation Options
 
@@ -134,9 +149,9 @@ Click the "Deploy to Azure" button at the top of this README to deploy n8n with 
 
 For more detailed deployment instructions, see the [infrastructure README](/infra/README.md).
 
-## 🔌 Using the ConnectWise Manage Integration
+## 🔌 Using the Integrations
 
-After installation, the ConnectWise Manage nodes will be available in your n8n instance:
+After installation, both ConnectWise Manage and SmileBack nodes will be available in your n8n instance:
 
 ### 🔄 ConnectWise Manage Node
 
@@ -158,18 +173,50 @@ Use this node to start workflows based on events in ConnectWise Manage, such as:
 - New contact created
 - And many other events
 
+### 📊 SmileBack Node
+
+Use this node in your workflows to interact with SmileBack resources. It supports operations like:
+
+- Managing feedback collection
+- Creating and managing surveys
+- Accessing customer responses
+- Generating reports
+- Managing tags and categorization
+- And more
+
+### 📡 SmileBack Trigger
+
+Use this node to start workflows based on events in SmileBack, such as:
+
+- New feedback received
+- Survey response submitted
+- NPS score changes
+- Tag changes
+- And other events
+
 ## ⚙️ Configuration
 
-To use the ConnectWise Manage integration, configure the ConnectWise Manage API credentials in n8n:
+### ConnectWise Manage Configuration
+
+To use the ConnectWise Manage integration:
 
 1. Go to Settings > Credentials
 2. Create a new credential of type "ConnectWise Manage API"
 3. Enter your ConnectWise Manage site URL, company ID, public key, and private key
 
+### SmileBack Configuration
+
+To use the SmileBack integration:
+
+1. Go to Settings > Credentials
+2. Create a new credential of type "SmileBack API"
+3. Enter your SmileBack API key and account settings
+
 ## 📚 Resources
 
 - [n8n Documentation](https://docs.n8n.io/)
 - [ConnectWise Manage API Documentation](https://developer.connectwise.com/)
+- [SmileBack API Documentation](https://api.smileback.com/docs)
 - [Azure Container Apps Documentation](https://docs.microsoft.com/en-us/azure/container-apps/)
 
 ## 📄 License

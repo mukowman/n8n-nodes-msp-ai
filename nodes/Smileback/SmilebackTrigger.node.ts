@@ -61,16 +61,6 @@ export class SmilebackTrigger implements INodeType {
 				default: false,
 				description: 'Whether to include unrated reviews',
 			},
-			{
-				displayName: 'Polling Time',
-				name: 'pollTime',
-				type: 'number',
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 5,
-				description: 'Time in minutes to poll for new reviews',
-			},
 		],
 	};
 
@@ -81,7 +71,6 @@ export class SmilebackTrigger implements INodeType {
 			// Validate all required parameters upfront
 			const parameters = {
 				includeUnrated: this.getNodeParameter('includeUnrated', 1) as boolean,
-				pollTime: this.getNodeParameter('pollTime', 0) as number,
 				resource: this.getNodeParameter('resource', 0) as string,
 			};
 

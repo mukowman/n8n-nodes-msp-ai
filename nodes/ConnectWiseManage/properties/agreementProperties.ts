@@ -80,8 +80,8 @@ export const agreementProperties: INodeProperties[] = [
 		description: 'The name of the agreement',
 	},
 	{
-		displayName: 'Search Query',
-		name: 'searchQuery',
+		displayName: 'Conditions',
+		name: 'conditions',
 		type: 'string' as NodePropertyTypes,
 		default: '',
 		required: true,
@@ -91,7 +91,8 @@ export const agreementProperties: INodeProperties[] = [
 				operation: ['search'],
 			},
 		},
-		description: 'Search query to filter agreements',
+		description:
+			'Query conditions to filter agreements (e.g., "name like \'Test%\'" or "type=\'Standard\'")',
 	},
 	{
 		displayName: 'Return All',
@@ -100,7 +101,7 @@ export const agreementProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['agreement'],
-				operation: ['getAll'],
+				operation: ['getAll', 'search'],
 			},
 		},
 		default: false,
@@ -113,7 +114,7 @@ export const agreementProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['agreement'],
-				operation: ['getAll'],
+				operation: ['getAll', 'search'],
 				returnAll: [false],
 			},
 		},
@@ -122,19 +123,6 @@ export const agreementProperties: INodeProperties[] = [
 		},
 		default: 100,
 		description: 'Max number of results to return',
-	},
-	{
-		displayName: 'Order By',
-		name: 'orderBy',
-		type: 'string' as NodePropertyTypes,
-		default: 'id',
-		displayOptions: {
-			show: {
-				resource: ['agreement'],
-				operation: ['getAll', 'search'],
-			},
-		},
-		description: 'Order results by specified field',
 	},
 	{
 		displayName: 'Additional Fields',

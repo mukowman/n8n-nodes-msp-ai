@@ -184,56 +184,23 @@ export const scheduleProperties: INodeProperties[] = [
 			{
 			  displayName: 'Date End',
 			  name: 'dateEnd',
-			  type: 'dateTime' as NodePropertyTypes,
+			  type: 'string' as NodePropertyTypes,
 			  default: '',
-				description: 'Schedule end date (YYYY-MM-DD)',
+				description: 'Schedule end date (2025-10-01T15:30:00Z)',
 			},
 			{
 			  displayName: 'Date Start',
 			  name: 'dateStart',
-			  type: 'dateTime' as NodePropertyTypes,
+			  type: 'string' as NodePropertyTypes,
 			  default: '',
-				description: 'Schedule start date (YYYY-MM-DD)',
+				description: 'Schedule start date (2025-10-01T15:30:00Z)',
 			},
 			{
-				displayName: 'Status',
-				name: 'status',
-				type: 'options' as NodePropertyTypes,
-				options: [
-					{
-						name: 'Scheduled',
-						value: 'Scheduled',
-					},
-					{
-						name: 'Confirmed',
-						value: 'Confirmed',
-					},
-					{
-						name: 'Completed',
-						value: 'Completed',
-					},
-				],
-				default: 'Scheduled',
-			},
-			{
-				displayName: 'Type',
-				name: 'type',
-				type: 'options' as NodePropertyTypes,
-				options: [
-					{
-						name: 'General',
-						value: 'General',
-					},
-					{
-						name: 'Project',
-						value: 'Project',
-					},
-					{
-						name: 'Sales',
-						value: 'Sales',
-					},
-				],
-				default: 'General',
+				displayName: 'Owner',
+				name: 'ownerFlag',
+				type: 'boolean' as NodePropertyTypes,
+				default: false,
+				description: 'Flag the schedule member as the object owner',
 			},
 		],
 	},

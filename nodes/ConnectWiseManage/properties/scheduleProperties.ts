@@ -112,7 +112,7 @@ export const scheduleProperties: INodeProperties[] = [
 	{
 		displayName: 'Object ID',
 		name: 'objectId',
-		type: 'string' as NodePropertyTypes,
+		type: 'number' as NodePropertyTypes,
 		default: '',
 		required: true,
 		displayOptions: {

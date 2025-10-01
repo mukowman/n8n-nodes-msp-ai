@@ -66,36 +66,48 @@ export const scheduleProperties: INodeProperties[] = [
 		description: 'The ID of the schedule entry',
 	},
 	{
-		displayName: 'Object Type',
-		name: 'objectType',
-		type: 'options' as NodePropertyTypes,
+	  displayName: 'Schedule Type',
+	  name: 'type',
+	  type: 'collection' as NodePropertyTypes,
+	  placeholder: 'Add Type',
+	  default: {},
+	  options: [
+	    {
+	      displayName: 'Identifier',
+	      name: 'identifier',
+	      type: 'string' as NodePropertyTypes,
+	      default: '',
+	      description: 'The type identifier (e.g. "S" for Service, "C" for Sales)',
+	    },
+	  ],
+	  displayOptions: {
+	    show: {
+	      resource: ['schedule'],
+	      operation: ['create'],
+	    },
+	  },
+	},
+	{
+		displayName: 'Member',
+		name: 'member',
+		type: 'collection' as NodePropertyTypes,
+		placeholder: 'Add Member',
+		default: {},
 		options: [
 			{
-				name: 'Activity',
-				value: 'Activity',
-			},
-			{
-				name: 'Service Ticket',
-				value: 'ServiceTicket',
-			},
-			{
-				name: 'Project',
-				value: 'Project',
-			},
-			{
-				name: 'Sales',
-				value: 'Sales',
+				displayName: 'Identifier',
+				name: 'identifier',
+				type: 'string' as NodePropertyTypes,
+				default: '',
+				description: 'The member identifier (e.g. sj4680g)',
 			},
 		],
-		default: 'Activity',
-		required: true,
 		displayOptions: {
 			show: {
 				resource: ['schedule'],
 				operation: ['create'],
 			},
 		},
-		description: 'The type of object to schedule',
 	},
 	{
 		displayName: 'Object ID',
@@ -170,24 +182,17 @@ export const scheduleProperties: INodeProperties[] = [
 		default: {},
 		options: [
 			{
-				displayName: 'End Date',
-				name: 'endDate',
-				type: 'string' as NodePropertyTypes,
-				default: '',
+			  displayName: 'Date End',
+			  name: 'dateEnd',
+			  type: 'dateTime' as NodePropertyTypes,
+			  default: '',
 				description: 'Schedule end date (YYYY-MM-DD)',
 			},
 			{
-				displayName: 'Member ID',
-				name: 'member',
-				type: 'string' as NodePropertyTypes,
-				default: '',
-				description: 'The member assigned to this schedule entry',
-			},
-			{
-				displayName: 'Start Date',
-				name: 'startDate',
-				type: 'string' as NodePropertyTypes,
-				default: '',
+			  displayName: 'Date Start',
+			  name: 'dateStart',
+			  type: 'dateTime' as NodePropertyTypes,
+			  default: '',
 				description: 'Schedule start date (YYYY-MM-DD)',
 			},
 			{

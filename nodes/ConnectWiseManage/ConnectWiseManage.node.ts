@@ -183,7 +183,7 @@ const resourceConfig: IResourceConfig = {
 	schedule: {
 		endpoint: 'schedule/entries',
 		primaryKey: 'scheduleId',
-		requiredCreateFields: ['objectType', 'objectId'],
+		requiredCreateFields: ['type', 'objectId', 'member'],
 	},
 	productCatalog: {
 		endpoint: 'procurement/catalog',

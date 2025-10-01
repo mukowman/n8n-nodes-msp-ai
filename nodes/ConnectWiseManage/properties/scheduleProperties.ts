@@ -146,7 +146,7 @@ export const scheduleProperties: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['schedule'],
-				operation: ['getAll','search,],
+				operation: ['getAll','search',],
 				returnAll: [false],
 			},
 		},
